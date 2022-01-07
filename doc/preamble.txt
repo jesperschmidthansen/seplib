@@ -1,0 +1,11 @@
+/* 
+* filename - This file is a part of the sep-library 
+*
+* Copyright (C) 2008 Jesper Schmidt Hansen 
+* 
+* License: GPL - see COPYING for copying conditions.
+* There is ABSOLUTELY NO WARRANTY, not even for MERCHANTIBILITY or
+* FITNESS FOR A PARTICULAR PURPOSE.
+*
+* Contact: schmidt@zigzak.net
+*/

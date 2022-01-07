@@ -1,0 +1,69 @@
+
+@mainpage seplib
+
+seplib is a flexible lightweight stand alone and easy hackable
+molecular dynamics software package written in standard C99. seplib
+consists of (i) the seplib kernel library, (ii) auxillary tools for
+simulation setup and post run data analysis, and (iii) a suit of
+test/example programs.
+
+---REQUIREMENTS--- 
+
+An iso-C99 compiler. Openmp compiler support required for parallisation.
+
+For easy installation: make-utils. 
+
+---INSTALLATION---
+
+1) Download the sep.tar.gz
+2) Unpack by fx: 'tar -zxvf sep.tar.gz'. A new directory
+   seplib will be created.	
+3) Change directory to seplib
+4) Type: './configure'
+5) Type: 'make'
+6) Optional: type 'make test'
+7) Optional: Check build - go to 'test' dir and type './run_test.sh'
+8) Optional: make install 
+
+NOTE: 
+
+The default installation is in /usr/local/ If you do not have 
+root privileges you can change the installation path by fx:
+
+./configure --prefix=/home/username/sep/
+
+
+---EXAMPLES AND HELP---
+
+
+1) prg0.c: Simple small Lennard-Jones system. NVE simulation.
+
+2) prg1.c: Simple, but larger, Lennard-Jones system. Sampler tjek. NVT simulation.
+
+3) prg2.c: Butane molecular system: Tests bond, angle and dihedral potentials. 
+
+4) prg3.c: Water with shifted-force Coloumb interaction scheme. Tests compression.
+
+5) prg4.c: OpenMP for Lennard-Jones (optimization model I)
+
+6) prg5.c: OpenMP for butane (optimization model II)
+
+7) prg6.c: DPD simulation.
+
+8) prg7.c: Lennard-Jones NPT simulation
+
+9) prg8.c: Slit-pore simulation: Tests virtual lattice sites and prof sampler
+
+
+Please see the API documentation in doc/dox/index.html using your favorite 
+browser.
+
+ 
+---LICENSE---
+
+Check out the LICENSE file.   
+
+
+---TODO---
+
+A lot...

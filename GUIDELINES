@@ -1,0 +1,26 @@
+
+Guideline for seplib developers (version 0.0.1)
+
+0) seplib is an open source flexible stand alone molecular dynamics
+library. It is released under GNU Public License version 2 or later
+
+1) seplib is written in ISO-C99 (as supported by gcc versions)
+with openmp support (version > 5.0).  
+
+2) Inclusion of other libraries is avoided. 
+
+3) The version numbering is 0.Y.X - it is highly unlikely that we will
+ever reach  a 1.Y.X series. 
+
+4) Commit small changes frequenctly than large changes less frequently. 
+
+5) Each commit must be acompanied by a (short) message.
+
+6) Before committing changes: 
+   - the code must compile with gcc flags -Wall, -pedantic, -W without producing warnings  
+   - all programs in the prgs/ directory must compile with -W -Wall
+   flags and must be able to run and produce the expected results.  
+
+7) The test programs should include all the main features of the library.
+
+

@@ -1,0 +1,19 @@
+
+<!-- To be placed after div class="contents" -->
+
+<div class="textblock">
+<p>
+This is seplib's API documentation. 
+</p>
+<p>
+seplib is a flexible lightweight stand alone and easy hackable
+molecular dynamics software package written in standard C99. seplib
+consists of (i) the seplib kernel library, (ii) auxillary tools for
+simulation setup and post run data analysis, and (iii) a suit of
+test/example programs.
+</p>
+<p>
+Requirenments: An iso-C99 compiler. Openmp compiler support required for
+parallisation. For easy installation: make-utils. 
+</p>
+</div>
