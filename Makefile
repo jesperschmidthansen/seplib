@@ -3,7 +3,7 @@
 # Macros
 
 CC          =  gcc
-CFLAGS      =  -g -O2 -fgnu89-inline -std=c99 -fPIC #@OMPFLAG@ 
+CFLAGS      =  -ggdb -O2 -fgnu89-inline -std=c99 -fPIC #@OMPFLAG@ 
 RANLIB      =  ranlib
 AR          =  ar 
 COMPLEX     =  -DCOMPLEX
@@ -53,11 +53,8 @@ test: $(PRGS)
 test/%:prgs/%.c
 	$(CC) $(CFLAGS) $(OMP) -o $@ -Llib/ -Iinclude $^ -lsep -lm
 
-
 # Compiling tools
-tools: $(TOOLS)
-
-tools/%: tools/%.c
+tools: tools/_sep_lattice.c tools/_sep_sfg.c 
 	$(CC) $(CFLAGS) $(OMP) -Iinclude -c tools/_sep_lattice.c
 	$(CC) $(CFLAGS) $(OMP) -Iinclude -c tools/_sep_sfg.c
 	$(CC) $(CFLAGS) $(OMP) _sep_lattice.o -o tools/sep_lattice tools/sep_lattice.c -lm
