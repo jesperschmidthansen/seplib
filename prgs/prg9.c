@@ -13,12 +13,9 @@ int main(void){
   sepatom *atoms;
   sepsys system;
   sepret returns;
-  sepsampler sampler;
   double t, dt, cutoff,
-    dens, lbox,
-    etot, sump, tstart;
-  int natoms, n, nloops,
-    lvacf, tvacf;
+    dens, lbox, tstart;
+  int natoms, n, nloops;
  
   // Setting parameter values 
   natoms = 216;             // Number of atoms

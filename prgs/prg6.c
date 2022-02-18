@@ -11,15 +11,13 @@
 
 int main( void ){
   sepatom *atoms;
-		   
   sepsys sys;
   sepret ret;
-  
   double t, dt, tend,
     dens, lbox,
     etot, sump, 
     temp, sigma,
-    a_AA, cf, eta;
+    a_AA, cf;
   int natoms, n;
 
   // Setting parameter values 

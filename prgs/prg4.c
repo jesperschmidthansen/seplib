@@ -12,8 +12,7 @@ int main( int argc, char **argv ){
   sepatom *atoms;
   sepsys sys;
   sepret ret;
-  sepsampler sampler;
-  double t, dt, 
+  double dt, 
     dens, temp, lbox,
     etot, sump;
   int natoms, n, nthreads;

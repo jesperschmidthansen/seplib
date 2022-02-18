@@ -47,8 +47,6 @@ int main(void){
   sep_add_sampler(&sampler, "sacf", sys, 50, 2.0);
   sep_add_sampler(&sampler, "msd", sys, 125, 10.0, 5, 'A');
 
-  double param[]={rcut, 1.0,1.0,1.0};
-   
   // Main loop 
   t=0.0; n = 0;
   while ( n<nloops ){
@@ -61,7 +59,6 @@ int main(void){
 
     // Evaluate forces acting on between part. Particle lable is 'A' as default 
     sep_force_pairs(atoms, "AA", rcut, sep_lj_shift, &sys, &ret, SEP_ALL);
-    //sep_force_lj(atoms, "AA", param, &sys, &ret, SEP_ALL);
       
     // Integrate particles forward in time
     sep_nosehoover(atoms, temp, alpha, Q, &sys);
