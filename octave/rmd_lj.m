@@ -9,7 +9,7 @@ molsim('load', 'xyz', 'start.xyz');
 for n=1:10000
 
   molsim('reset');
-  molsim('calcforce', 'lj', 'AA', cutoff, sigma, epsilon);
+  molsim('calcforce', 'lj', 'AA', cutoff, sigma, epsilon, 1.0);
   molsim('integrate', 'leapfrog');
 
   if rem(n, 100)==0

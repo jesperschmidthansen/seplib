@@ -53,13 +53,13 @@ void mexFunction (int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     mexPrintf("Action %s given -> ", action);
     mexErrMsgTxt("Not a valid action\n");
   
-#ifdef OCTAVE
-    free(action);
-#endif
-    
     break;
   }
-  
+
+#ifdef OCTAVE
+  free(action);
+#endif
+    
 }
 
 
@@ -316,7 +316,8 @@ void action_calcforce(int nrhs, const mxArray **prhs){
       double sigma = mxGetScalar(prhs[4]);
       double epsilon = mxGetScalar(prhs[5]);
       double postfac = mxGetScalar(prhs[6]);
-      double param[4]={cf, sigma, epsilon, postfac};
+      
+      double param[4]={cf, epsilon, sigma, postfac};
       
       sep_force_lj(atoms, types, param, &sys, &ret, exclusionflag);
 #ifdef OCTAVE
@@ -458,14 +459,15 @@ void action_thermostate(int nrhs, const mxArray **prhs){
 
 void action_barostate(int nrhs, const mxArray **prhs){
   
-    if ( nrhs != 4 ) inputerror(__func__);
-
-    // Only relax is supported and ignored right now
-    
+    if ( nrhs != 4 && nrhs != 5 ) inputerror(__func__);
+        
     double Pd = mxGetScalar(prhs[2]);
     double beta =  mxGetScalar(prhs[3]);
 
-    sep_berendsen(atoms, Pd, beta, &ret, &sys);
+    if ( nrhs == 4 )
+      sep_berendsen(atoms, Pd, beta, &ret, &sys);
+    else if ( nrhs == 5 )
+      sep_berendsen_iso(atoms, Pd, beta, &ret, &sys);
 }
 
 
@@ -496,8 +498,8 @@ void action_print(void){
 
 void action_get(mxArray **plhs, int nrhs, const mxArray **prhs){
 
-  if ( nrhs != 2 ) inputerror(__func__);
-
+  if ( nrhs != 2 && nrhs != 3 ) inputerror(__func__);
+  
   char *specifier =  mxArrayToString(prhs[1]);
     
   // Positions
@@ -555,6 +557,13 @@ void action_get(mxArray **plhs, int nrhs, const mxArray **prhs){
     
     sep_pressure_tensor(&ret, &sys);
     plhs[0] = mxCreateDoubleScalar(ret.p);
+    
+  }
+  // Pressure
+  else if ( strcmp("molpressure", specifier)==0 ){
+
+    sep_eval_mol_pressure_tensor(atoms, mols, &ret, &sys);
+    plhs[0] = mxCreateDoubleScalar(ret.p_mol);
     
   }
   // Number of particles 
