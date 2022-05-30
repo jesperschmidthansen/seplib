@@ -821,6 +821,7 @@ void sep_lj_pair_neighb(seppart *ptr, const char *types,
 	      for ( kk=0; kk<3; kk++ )
 		pconf[k*3+kk] += f[k]*r[kk];
 	  }
+	     
 	}
 	n++;
       }

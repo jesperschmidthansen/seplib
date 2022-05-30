@@ -306,11 +306,8 @@ void sep_sacf_sample(sepsacf *sptr, sepret *ret, sepsys sys){
   if ( sptr->i == sptr->lvec ){
     double *parray = sep_vector(sptr->lvec);
 
-    SEP_TICTOC;
-    SEP_TIC;
-    
-#pragma omp parallel for schedule(dynamic) \
-  private(k, n, nn)			   \
+#pragma omp parallel for schedule(dynamic) 	\
+  private(k, n, nn)				\
   reduction(+:parray[:sptr->lvec])
     for ( k=0; k<3; k++ ){
       for ( n=0; n<sptr->lvec; n++ ){
@@ -319,32 +316,23 @@ void sep_sacf_sample(sepsacf *sptr, sepret *ret, sepsys sys){
         }
       }
     }
-
+    
     for ( n=0; n<sptr->lvec; n++ )  sptr->sacf[n] += parray[n];
     free(parray);
-    
-    printf("\n Calc. %d\n", SEP_TOC); SEP_FLUSH;
-    
+
     (sptr->nsample)++;
 
     FILE *fout1 = fopen("sacf.dat", "w");
-
-    SEP_TIC;
-    
     for ( unsigned n=0; n<sptr->lvec; n++ ){
       double t   = n*sptr->dtsample;
       double fac = sys.volume/(3*(sptr->lvec-n)*sptr->nsample);
       fprintf(fout1, "%f %f\n", t, sptr->sacf[n]*fac);
     }
 
-    printf("\nPrint %d\n", SEP_TOC); SEP_FLUSH;
-    
     fclose(fout1); 
     
     sptr->i = 0;
-    
   }
-
 }
 
 void sep_sacf_close(sepsacf *ptr){
@@ -737,7 +725,8 @@ sepmsacf *sep_msacf_init(int lvec, double tsample, double dt){
 
 void sep_msacf_sample(sepmsacf *sptr, sepatom *atoms, sepmol *mols, 
 		      sepret *ret, sepsys sys){
-
+  unsigned k, n, nn;
+  
   sep_mol_pressure_tensor(atoms, mols, ret, &sys);
 
   int index = sptr->i;
@@ -753,16 +742,27 @@ void sep_msacf_sample(sepmsacf *sptr, sepatom *atoms, sepmol *mols,
   (sptr->i)++;
 
   if ( sptr->i == sptr->lvec ){
+    double *parray_sym = sep_vector(sptr->lvec);
+    double *parray_asym = sep_vector(sptr->lvec);
 
-    for ( int k=0; k<3; k++ ){
-      for ( unsigned n=0; n<sptr->lvec; n++ ){
-        for ( unsigned nn=0; nn<sptr->lvec-n; nn++ ){
-          sptr->sacf[n][0] += sptr->sstress[nn][k]*sptr->sstress[n+nn][k];
-	  sptr->sacf[n][1] += sptr->astress[nn][k]*sptr->astress[n+nn][k];
+#pragma omp parallel for schedule(dynamic) 	\
+  private(k, n, nn)				\
+  reduction(+:parray_sym[:sptr->lvec],parray_asym[:sptr->lvec])
+    for ( k=0; k<3; k++ ){
+      for ( n=0; n<sptr->lvec; n++ ){
+        for ( nn=0; nn<sptr->lvec-n; nn++ ){
+          parray_sym[n] += sptr->sstress[nn][k]*sptr->sstress[n+nn][k];
+	  parray_asym[n] += sptr->astress[nn][k]*sptr->astress[n+nn][k];
         }
       }
     }
 
+    for ( unsigned n=0; n<sptr->lvec; n++ ){ 
+      sptr->sacf[n][0] += parray_sym[n];
+      sptr->sacf[n][1] += parray_asym[n];
+    }
+    free(parray_sym); free(parray_asym);
+    
     (sptr->nsample)++;
 
     FILE *fout1 = fopen("msacf.dat", "w");

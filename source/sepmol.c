@@ -1162,3 +1162,4 @@ void sep_mol_write_config(seppart *atoms, sepmol *mols, sepsys sys){
   sep_write_molconf(atoms, mols, file_name, sys);      
 
 }
+
