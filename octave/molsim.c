@@ -9,7 +9,7 @@ void mexFunction (int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     mexPrintf("molsim - a wrapper for seplib. Check documentation. \n");
     return;
   }
-  
+     
   // ...and ACTION!!
   char *action = mxArrayToString(prhs[0]);
 	 
@@ -25,15 +25,15 @@ void mexFunction (int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
 
   case INTEGRATE: action_integrate(nrhs, prhs); break;
 
-  case THERMOSTATE: action_thermostate(nrhs, prhs); break;
+  case THERMOSTAT: action_thermostate(nrhs, prhs); break;
 
-  case BAROSTATE: action_barostate(nrhs, prhs); break;
+  case BAROSTAT: action_barostate(nrhs, prhs); break;
     
   case SAVE: action_save(nrhs, prhs); break;
 
   case PRINT: action_print(); break;
     
-  case GET: action_get(plhs, nrhs, prhs); break;
+  case GET: action_get(nlhs, plhs, nrhs, prhs); break;
 
   case SAMPLE: action_sample(nrhs, prhs); break; 
 
@@ -46,6 +46,8 @@ void mexFunction (int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
   case ADD:  action_add(nrhs, prhs); break;
 
   case HELLO:  mexPrintf("Hello. \n"); break;
+
+  case CONVERT: action_convert(nlhs, plhs, nrhs, prhs); break;
 
   case HASHVALUE: action_hash(nrhs, prhs); break;
     
@@ -111,10 +113,11 @@ void action_reset(int nrhs){
   
   sep_reset_retval(&ret);
   sep_reset_force(atoms, &sys);
-  
-  if ( initmol )
+
+  // Resetting the Fijmol arrays is slow - therefore only when necessary
+  if ( initmol && iterationNumber%msacf_int_sample == 0 ){
     sep_reset_force_mol(&sys);
-  
+  }
 }
 
 void action_set(int nrhs, const mxArray* prhs[]){
@@ -318,8 +321,15 @@ void action_calcforce(int nrhs, const mxArray **prhs){
       double postfac = mxGetScalar(prhs[6]);
       
       double param[4]={cf, epsilon, sigma, postfac};
+
+      bool tmp = sys.omp_flag;
       
+      if ( initmol && tmp && iterationNumber%msacf_int_sample == 0 ) sys.omp_flag = false;
+
       sep_force_lj(atoms, types, param, &sys, &ret, exclusionflag);
+      
+      sys.omp_flag = tmp;
+      
 #ifdef OCTAVE
       free(types);
 #endif
@@ -372,7 +382,13 @@ void action_calcforce(int nrhs, const mxArray **prhs){
       char *algorithm =  mxArrayToString(prhs[2]);
       if ( strcmp(algorithm, "sf") == 0 ){
 	double cf = mxGetScalar(prhs[3]);
+
+	bool tmp = sys.omp_flag;
+	if ( initmol && tmp && iterationNumber%msacf_int_sample == 0 ) sys.omp_flag = false;
+
 	sep_coulomb_sf(atoms, cf, &sys, &ret, exclusionflag);
+
+	sys.omp_flag = tmp;
       }
       else if ( strcmp(algorithm, "wolf") == 0 ) {
 	double cf = mxGetScalar(prhs[3]);
@@ -496,7 +512,7 @@ void action_print(void){
 
 }
 
-void action_get(mxArray **plhs, int nrhs, const mxArray **prhs){
+void action_get(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs){
 
   if ( nrhs != 2 && nrhs != 3 ) inputerror(__func__);
   
@@ -544,7 +560,15 @@ void action_get(mxArray **plhs, int nrhs, const mxArray **prhs){
     
     free(types);
   }
-  // Energies
+  // Mass
+  else if ( strcmp("mass", specifier)==0 ){
+    plhs[0] = mxCreateDoubleMatrix(natoms, 1, mxREAL);
+
+    double *mass = mxGetPr(plhs[0]);
+    
+    for ( int n=0; n<natoms; n++ ) mass[n] = atoms[n].m;
+  }
+   // Energies
   else if ( strcmp("energies", specifier)==0 ){
     plhs[0] = mxCreateDoubleMatrix(1, 2, mxREAL);
     
@@ -557,13 +581,13 @@ void action_get(mxArray **plhs, int nrhs, const mxArray **prhs){
     
     sep_pressure_tensor(&ret, &sys);
     plhs[0] = mxCreateDoubleScalar(ret.p);
-    
-  }
-  // Pressure
-  else if ( strcmp("molpressure", specifier)==0 ){
 
-    sep_eval_mol_pressure_tensor(atoms, mols, &ret, &sys);
-    plhs[0] = mxCreateDoubleScalar(ret.p_mol);
+    if ( initmol && nlhs == 2 && (iterationNumber-1)%msacf_int_sample == 0){
+      sep_eval_mol_pressure_tensor(atoms, mols, &ret, &sys);
+      plhs[1] = mxCreateDoubleScalar(ret.p_mol);
+    }
+    else if ( initmol && nlhs == 2 )
+      plhs[1] =mxCreateDoubleScalar(0.0f);
     
   }
   // Number of particles 
@@ -604,6 +628,35 @@ void action_get(mxArray **plhs, int nrhs, const mxArray **prhs){
     for ( int k=0; k<3; k++ )
       for ( int n=0; n<nmols; n++ )
 	dipole[k*nmols + n] = mols[n].pel[k];
+  }
+  // Molecular cm velocities
+  else if ( strcmp("molvelocities", specifier)==0 ){
+    const int nmols = sys.molptr->num_mols;
+	
+    plhs[0] = mxCreateDoubleMatrix(nmols, 3, mxREAL);
+    double *velocities = mxGetPr(plhs[0]);
+
+    sep_mol_velcm(atoms, mols, &sys);
+     
+    for ( int k=0; k<3; k++ )
+      for ( int n=0; n<nmols; n++ )
+	velocities[k*nmols + n] = mols[n].v[k];
+    
+  }
+  // Atomic indicies
+  else if ( strcmp("indices", specifier) ){
+    if ( nrhs!= 3 ) inputerror(__func__);
+    
+    unsigned int molindex = (unsigned)mxGetScalar(prhs[2]);
+    if ( molindex - 1 > sys.molptr->num_mols )
+      mexErrMsgTxt("Molecular index larger than number of molecules \n");    
+
+    const long nuau = (long unsigned)mols[molindex].nuau;
+    plhs[0] = mxCreateNumericArray(1, &nuau, mxINT32_CLASS, mxREAL);
+    int *ptr = (int *)mxGetPr(plhs[0]);
+
+    for ( unsigned n=0; n<mols[molindex].nuau; n++ )
+      ptr[n] = mols[molindex].index[n];
   }
   // Molecular end-to-end
   else if ( strcmp("endtoend", specifier)==0 ){
@@ -692,7 +745,7 @@ void action_sample(int nrhs, const mxArray **prhs){
 
     if ( strcmp(specifier, "do")==0 && initsampler ){
       if ( nrhs != 2 ) inputerror(__func__);
-      sep_sample(atoms, &sampler, &ret, sys, iterationNumber);
+      sep_sample(atoms, &sampler, &ret, sys, iterationNumber-1);
     }
     else if ( strcmp(specifier, "vacf")==0 ){
       if ( nrhs != 4 ) inputerror(__func__);
@@ -728,6 +781,10 @@ void action_sample(int nrhs, const mxArray **prhs){
       int lvec = (int)mxGetScalar(prhs[2]);
       double time = mxGetScalar(prhs[3]);
       sep_add_sampler(&sampler, "msacf", sys, lvec, time);
+
+      // msacf_int_sample is set such that OMP is disabled every
+      // time we sample
+      msacf_int_sample = (int)(time/sys.dt)/lvec;
     }
     else if ( strcmp(specifier, "mvacf")==0 ){
       if ( nrhs != 4 ) inputerror(__func__);
@@ -767,6 +824,17 @@ void action_sample(int nrhs, const mxArray **prhs){
       int nk = (int)mxGetScalar(prhs[4]);
       sep_add_sampler(&sampler, "mgh", sys, lvec, time, nk, 0, 1);
     }
+    else if ( strcmp(specifier, "mprofiles")==0 ){
+      if ( nrhs != 5 ) inputerror(__func__);
+      char *type =  mxArrayToString(prhs[2]);
+      int lvec = (int)mxGetScalar(prhs[3]);
+      int interval = (int)mxGetScalar(prhs[4]);
+      sep_add_sampler(&sampler, "mprofs", sys, lvec, type[0], interval);
+#ifdef OCTAVE
+      free(type);
+#endif    
+    }
+
     else {
       mexErrMsgTxt("Activator 'sample' -> not valid specifier\n");
     }
@@ -952,6 +1020,53 @@ void action_add(int nrhs, const mxArray **prhs){
     free(specifier);
 #endif
 
+}
+
+void action_convert(int nlhs, mxArray **plhs,
+		    int nrhs, const mxArray **prhs){
+
+#define KB 1.3806503e-23 // J/K
+#define NA 6.0221e23     // per mol
+#define EPS0 8.8542e-12  // (C/(Vm))
+  
+  if (nrhs != 4) 
+    mexErrMsgTxt("Three input arguments required."); 
+
+  // Base SI units 
+  double sigma = mxGetScalar(prhs[1])*1.0e-10; 
+  double eps = mxGetScalar(prhs[2])*KB;
+  double mass = mxGetScalar(prhs[3])*1.0e-3/NA;
+
+  const int nfields = 10;
+  const char *keys[] = {"time", "density", "temperature",  "pressure", "charge", "dipole", "force", "torque", "diffusion", "viscosity"};
+  const char *units[] = {"Seconds", "kg/m^3", "Kelvin", "Pascal", "Coulomb", "Coulomb meter", "Newton", "m^2/sec^2", "m^2/sec.", "Pascal sec."};
+  
+  double fieldval[nfields];
+  
+  mxArray *fields = mxCreateStructMatrix (1, 1, nfields, keys);
+  mxArray *funits = mxCreateStructMatrix (1, 1, nfields, keys);
+
+  fieldval[0] = sigma*sqrt(mass/eps);
+  fieldval[1] = mass/pow(sigma,3.0);
+  fieldval[2] = eps/KB;
+  fieldval[3] = 1.0/sigma*mass*pow(fieldval[0], -2.0);
+  fieldval[4] = sqrt(4.0*M_PI*EPS0*sigma*eps);
+  fieldval[5] = sqrt(4.0*M_PI*EPS0*pow(sigma,3.0)*eps); 
+  fieldval[6] = mass*sigma/pow(fieldval[0],2.0);
+  fieldval[7] = pow(sigma/fieldval[0],2.0);
+  fieldval[8] = sigma/sqrt(mass/eps);
+  fieldval[9] = mass/(sigma*fieldval[0]);
+
+  for ( int n=0; n<nfields; n++ ){
+    mxSetFieldByNumber (fields, 0, n, mxCreateDoubleScalar(fieldval[n]));
+    mxSetFieldByNumber (funits, 0, n, mxCreateString(units[n]));
+  }
+  
+  plhs[0] = fields; plhs[1] = funits;
+
+#undef KB
+#undef NA
+#undef EPS0
 }
 
 void action_hash(int nrhs, const mxArray **prhs){
