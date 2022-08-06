@@ -115,12 +115,14 @@ void action_reset(int nrhs){
   sep_reset_force(atoms, &sys);
 
   // Resetting the Fijmol arrays is slow - therefore only when necessary
-  if ( initmol && msacf_int_sample > 0 && iterationNumber%msacf_int_sample == 0 ){
-    sep_reset_force_mol(&sys);
-  }
-  if ( initmol && msacf_int_calc > 0 && iterationNumber%msacf_int_calc == 0 ){
-    sep_reset_force_mol(&sys);
-  }
+   if ( initmol ){
+    if ( msacf_int_sample > 0 && iterationNumber%msacf_int_sample == 0 )
+      sep_reset_force_mol(&sys);
+    else if ( msacf_int_calc > 0 && (iterationNumber+1)%msacf_int_calc == 0 )
+      sep_reset_force_mol(&sys);
+   }
+   
+
 }
 
 void action_set(int nrhs, const mxArray* prhs[]){
@@ -137,11 +139,20 @@ void action_set(int nrhs, const mxArray* prhs[]){
   }
   else if ( strcmp(specifier, "cutoff")==0 ){
     if ( nrhs != 3 ) inputerror(__func__);
+
+    if ( initflag ){
+      mexErrMsgTxt("The cutoff length must be set before loading");
+      return;
+    }
+    
     maxcutoff = mxGetScalar(prhs[2]);
   }
   else if ( strcmp(specifier, "temperature")==0 ){
+   
     if ( nrhs != 3 ) inputerror(__func__);
+   
     temperature = mxGetScalar(prhs[2]);
+
     sep_set_vel_seed(atoms, temperature, 42, sys);
     tempflag = true;
   }
@@ -275,7 +286,7 @@ void action_load(int nrhs, const mxArray **prhs){
     char *file = mxArrayToString(prhs[2]);
     
     atoms = sep_init_xyz(lbox, &natoms, file, 'v');
-    
+
     sys = sep_sys_setup(lbox[0], lbox[1], lbox[2],
 			maxcutoff, dt, natoms, SEP_LLIST_NEIGHBLIST);
 
@@ -328,14 +339,14 @@ void action_calcforce(int nrhs, const mxArray **prhs){
       double param[4]={cf, epsilon, sigma, postfac};
 
       bool tmp = sys.omp_flag;
-
-      if ( initmol && tmp ){
+      
+      if ( initmol ){
 	if ( msacf_int_sample > 0 && iterationNumber%msacf_int_sample == 0 )
 	  sys.omp_flag = false;
-	if ( msacf_int_calc > 0 && iterationNumber%msacf_int_calc == 0 )
+	else if ( msacf_int_calc > 0 && (iterationNumber+1)%msacf_int_calc == 0 )
 	  sys.omp_flag = false;
       }
-      
+
       sep_force_lj(atoms, types, param, &sys, &ret, exclusionflag);
       
       sys.omp_flag = tmp;
@@ -398,7 +409,7 @@ void action_calcforce(int nrhs, const mxArray **prhs){
 	if ( initmol && tmp ){
 	  if ( msacf_int_sample > 0 && iterationNumber%msacf_int_sample == 0 ) 
 	    sys.omp_flag = false;
-	  if ( msacf_int_calc > 0 && iterationNumber%msacf_int_calc == 0 )
+	  if ( msacf_int_calc > 0 && (iterationNumber+1)%msacf_int_calc == 0 )
 	    sys.omp_flag = false;
 	}
 
@@ -604,16 +615,14 @@ void action_get(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs){
     sep_pressure_tensor(&ret, &sys);
     plhs[0] = mxCreateDoubleScalar(ret.p);
 
-    if ( initmol && nlhs == 2 && !sys.omp_flag ){
-      sep_eval_mol_pressure_tensor(atoms, mols, &ret, &sys);
-      plhs[1] = mxCreateDoubleScalar(ret.p_mol);
+    if ( nlhs == 2 ) {
+      if ( initmol && iterationNumber%msacf_int_calc == 0){
+	sep_eval_mol_pressure_tensor(atoms, mols, &ret, &sys);
+	plhs[1] = mxCreateDoubleScalar(ret.p_mol);
+      }
+      else
+	plhs[1] = mxCreateDoubleScalar(0.0f);
     }
-    else if ( initmol && nlhs == 2 && iterationNumber%msacf_int_calc == 0){
-      sep_eval_mol_pressure_tensor(atoms, mols, &ret, &sys);
-      plhs[1] = mxCreateDoubleScalar(ret.p_mol);
-    }
-    else if ( nlhs == 2 )
-      plhs[1] = mxCreateDoubleScalar(0.0f);
     
   }
   // Number of particles 
@@ -746,6 +755,33 @@ void action_get(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs){
     r[0] = creal(sump_m); r[1] = cimag(sump_m);
     // plhs[1].real = creal(sump_m); plhs[1].imag = cimag(sump_m);
   }
+  else if ( strcmp("torsions", specifier)==0 ){
+    const int ntorsion = sys.molptr->num_dihedrals;
+
+    plhs[0] = mxCreateDoubleMatrix(ntorsion, 1, mxREAL);
+    double *tptr = mxGetPr(plhs[0]);
+
+    for ( int n=0; n<ntorsion; n++ )
+	tptr[n] = sys.molptr->dihedrals[n];
+  }
+  else if ( strcmp("angles", specifier)==0 ){
+    const int nangles = sys.molptr->num_angles;
+
+    plhs[0] = mxCreateDoubleMatrix(nangles, 1, mxREAL);
+    double *tptr = mxGetPr(plhs[0]);
+
+    for ( int n=0; n<nangles; n++ )
+	tptr[n] = sys.molptr->angles[n];
+  }
+  else if ( strcmp("bondlengths", specifier)==0 ){
+    const int nbonds = sys.molptr->num_bonds;
+
+    plhs[0] = mxCreateDoubleMatrix(nbonds, 1, mxREAL);
+    double *tptr = mxGetPr(plhs[0]);
+
+    for ( int n=0; n<nbonds; n++ )
+	tptr[n] = sys.molptr->blengths[n];
+  } 
   else {
     mexErrMsgTxt("Action 'get' -> Not a valid specifier\n");
   }
@@ -969,11 +1005,22 @@ void action_task(int nrhs, const mxArray **prhs){
 
 void action_compress(int nrhs, const mxArray **prhs){
 
-  if ( nrhs != 2 ) inputerror(__func__);
+  if ( nrhs > 3 ) inputerror(__func__);
   
-  double targetdens = mxGetScalar(prhs[1]);
-  sep_compress_box(atoms, targetdens, compressionfactor, &sys);  
+  double target = mxGetScalar(prhs[1]);
+  
+  if ( nrhs == 2 ) 
+    sep_compress_box(atoms, target, compressionfactor, &sys);  
+  else if ( nrhs == 3 ) {
 
+    int dir = (int)mxGetScalar(prhs[2])-1;
+
+    if ( dir <0 || dir > 2 )
+      mexErrMsgTxt("Direction in compress specifier must be 0-2");
+    
+    sep_compress_box_dir_length(atoms, target, compressionfactor, dir, &sys);
+  }
+    
 }
 
 void action_clear(int nrhs, const mxArray **prhs){
