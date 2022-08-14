@@ -2,9 +2,9 @@ dnl
 dnl configure.in for seplib - not really nice but it works OK
 dnl 
 
-AC_INIT(seplib, development, jesperschmidthansen@gmail.com)
+AC_INIT([seplib],[development],[jesperschmidthansen@gmail.com])
 
-AC_LANG_C
+AC_LANG([C])
 AC_PROG_CC
 
 dnl need to check for some system tools
@@ -26,6 +26,13 @@ if test $CC = 'gcc' ; then
 fi 
 
 AC_SUBST(INLINE)
+
+dnl additional warning flags
+if test $CC='gcc'; then
+   WFLAGS=-Wall -Wextra
+fi
+
+AC_SUBST(WFLAGS)
 
 dnl checking for C99 support - only gcc or icc  
 if test $CC = 'gcc' ; then 
@@ -51,4 +58,5 @@ AC_CHECK_HEADER(omp.h, OMP=-fopenmp, AC_MSG_ERROR([Couldn't find openmp support]
 AC_SUBST(OMP)
 		
 dnl output Makefile
-AC_OUTPUT(Makefile)
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT

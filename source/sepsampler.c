@@ -1515,8 +1515,7 @@ void sep_profs_sampler(seppart *pptr, sepprofs *ptr, sepsys sys){
 // Hydro profiler (molecular) 
 sepmprofs *sep_mprofs_init(char type, int lvec, int isample, int dir, int dirvel, 
 			   int diramom){
-  
-  sepmprofs *ptr = malloc(sizeof(sepprofs));
+  sepmprofs *ptr = malloc(sizeof(sepmprofs));
   if ( ptr==NULL )
     sep_error("%s at line %d: Couldn't allocate memory", __func__, __LINE__);
 
