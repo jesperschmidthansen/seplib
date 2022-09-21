@@ -24,7 +24,7 @@ int main(void){
   // Setting parameter values 
   double dt = 5.0e-4;
   double alpha[3] = {0.1};
-  double temp = 4.0;
+  double temp = 3.81;
   double drho = 3.15;
  
   double lbond = 0.316;
@@ -52,7 +52,7 @@ int main(void){
 
   // Main loop 
   t=0.0; n = 0; 
-  while ( n < 5000 ){
+  while ( n < 1000 ){
     
     // Reset return values 
     sep_reset_retval(&ret);
