@@ -7,7 +7,6 @@
 * There is ABSOLUTELY NO WARRANTY, not even for MERCHANTIBILITY or
 * FITNESS FOR A PARTICULAR PURPOSE.
 *
-* Contact: schmidt@zigzak.net
 */
 
 
