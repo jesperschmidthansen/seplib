@@ -431,7 +431,6 @@ int sep_is_here(seppart *ptr, double min,
 }
 
 
-
 void sep_get_xp(seppart*ptr, double dt, int npart, int ndim){
   int n, k;
   
@@ -440,6 +439,7 @@ void sep_get_xp(seppart*ptr, double dt, int npart, int ndim){
       ptr[n].xp[k] = ptr[n].x[k] - ptr[n].v[k]*dt;
 
 }
+
 
 int sep_nsubbox(double cf, double delta, double lbox){
   double cut;

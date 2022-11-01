@@ -46,13 +46,16 @@ typedef struct {
   double xtrue[3];       /**< The true position without boundary wrapping */    
 
   double x0[3];         /**< Initial positions */    
+  
   double xp[3];         /**< Previous positions */
   double xn[3];         /**< Position at last neighborlist update */
 
   double px[3];         /**< Predicted postion */
   double pv[3];         /**< Predicted velocity */
   double pa[3];         /**< Predicted acceleration */
-						      			 
+
+  double randn[3];      /**< Random number (Langevin GJF) */
+  double pf[3];         /**< Previous force (Langevin GJF) */
 } seppart;
 
 typedef seppart sepatom;
