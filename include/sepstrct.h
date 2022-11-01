@@ -109,7 +109,8 @@ typedef struct {
   double dt;            /**< Integrator step */
   double tnow;          /**< Time now */ 
   unsigned ndof;        /**< Number of degrees of freedom */
-
+  double max_dist2;     /**< Maximum distance calculate in time step */
+  
   // Force stuff
   double cf;               /**< Maximum particle cut-off */  
   double lsubbox[3];       /**< Length of subboxes */ 

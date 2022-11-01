@@ -395,6 +395,7 @@ void sep_reset_force(seppart *ptr, sepsys *sys){
   for (n=0; n<sys->npart; n++)
     for (k=0; k<3; k++) ptr[n].f[k] = 0.0;
 
+  sys->max_dist2 = 0.0;
 }
 
 
