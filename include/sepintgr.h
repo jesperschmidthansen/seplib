@@ -35,6 +35,17 @@ double sep_periodic(sepatom *atoms, unsigned n, sepsys *sys);
 void sep_leapfrog(seppart *ptr, sepsys *sys, sepret *retval);
 
 /**
+ * Updates the positions and velocities using the Grønbeck-Jensen Farago algorithm.
+ * Implemented from Mol. Phys. 111:983-991 (2013)
+ * @param ptr Pointer to the seplib particle structure
+ * @param temp0 Desired temperature
+ * @param alpha Langevin thermostat parameter
+ * @param sys Pointer to the seplib system structure
+ * @param retval Pointer to the seplib return structure
+ */
+void sep_langevinGJF(sepatom *ptr, double temp0, double alpha, sepsys *sys, sepret *retval);
+
+/**
  * Updates the Nose-Hoover thermostat friction coefficient and adds the
  * corresponding force to particles of specified type. Used before and in
  * connection with the leap-frog algorithm 

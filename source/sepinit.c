@@ -38,14 +38,16 @@ seppart *sep_init(size_t npart, size_t nneighb){
     ptr[n].z = 0.0;
     ptr[n].ldiff = 1.0;
 
-    for (k=0; k<3; k++)
+    for (k=0; k<3; k++){
       ptr[n].x[k] = 0.0;
-    for ( k=0; k<4; k++ )
-      ptr[n].bond[k] = -1;
-    for (k=0; k<3; k++)
       ptr[n].crossings[k] = 0;
-    for (k=0; k<3; k++)
       ptr[n].cross_neighb[k] = 0;
+      ptr[n].randn[k] = 0.0;
+      ptr[n].prevf[k] = 0.0;
+    }
+	
+    for ( k=0; k<4; k++ ) ptr[n].bond[k] = -1;
+         
   }
   
   return ptr;
