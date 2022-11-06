@@ -14,7 +14,7 @@ int main(void){
   sepret ret;
   double t, dt, 
     dens, lbox,
-    etot, sump, alpha[3];
+    etot, sump, alpha;
   int natoms, n;
    
   // Setting parameter values 
@@ -22,7 +22,7 @@ int main(void){
   natoms = 216;
   dt = 0.005;
   lbox = pow(natoms/dens, 1.0/3.0);
-  alpha[0]=alpha[1]=alpha[2] = 0.1;
+  alpha = 0.1;
   
   // Allocating memory 
   atoms = sep_init(natoms, SEP_NO_NEIGHB);
@@ -48,7 +48,7 @@ int main(void){
     sep_force_pairs(atoms, "AA", 2.5, sep_lj_shift, &sys, &ret, SEP_ALL);
 
     // Integrate particles forward in time 
-    sep_nosehoover(atoms, 0.5, alpha, 10.0, &sys);
+    sep_nosehoover(atoms, 'A', 0.5, &alpha, 0.1, &sys);
     sep_leapfrog(atoms, &sys, &ret);
    
     // The Berensen barostat

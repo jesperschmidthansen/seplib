@@ -142,11 +142,37 @@ void sep_langevinGJF(sepatom *ptr, double temp0, double alpha, sepsys *sys, sepr
   retval->ekin += 0.5*sum_ekin;
 }
 
-void sep_nosehoover_type(seppart *ptr, char type, double Td, 
+  
+void sep_nosehoover(sepatom *ptr, char type, double temp0, double *alpha,
+			 const double tau, sepsys *sys){
+  
+  int ntype = 0;  double ekin = 0.0;
+  for (int n=0; n<sys->npart; n++){
+    if ( ptr[n].type == type ){
+      ntype++;
+      for ( int k=0; k<3; k++ )
+	ekin += sep_Sq(ptr[n].v[k])*ptr[n].m;
+    }
+  }
+
+  ekin = 0.5*ekin/ntype;
+  double temp = 0.666667*ekin;
+
+  *alpha = *alpha + sys->dt/(tau*tau)*(temp/temp0 - 1.0); 
+  
+  for ( int n=0; n<sys->npart; n++ ){
+    if ( ptr[n].type == type ) {
+      for ( int k=0; k<3; k++ )
+	ptr[n].f[k] -= *alpha*ptr[n].m*ptr[n].v[k];
+    }
+  }
+      
+} 
+
+void _sep_nosehoover_type(seppart *ptr, char type, double Td, 
 			double *alpha, const double Q, sepsys *sys){ 
 
-  int ntype = 0;
-  double ekin = 0.0;
+  int ntype = 0;  double ekin = 0.0;
   for (int n=0; n<sys->npart; n++){
     if ( ptr[n].type == type ){
       ntype++;
@@ -156,21 +182,25 @@ void sep_nosehoover_type(seppart *ptr, char type, double Td,
   }
 
   const double g = 3*ntype-3;
+  
   double tmp = alpha[0];
 
   alpha[0] = alpha[1];
   alpha[1] = alpha[2];
   alpha[2] = tmp + 2.0*sys->dt*(ekin - g*Td)/Q;	    
 
-  for ( int n=0; n<sys->npart; n++ )
-    if ( ptr[n].type == type ) 	
-      for ( int k=0;  k<3; k++ ) 
+  for ( int n=0; n<sys->npart; n++ ){
+    if ( ptr[n].type == type ) {	
+      for ( int k=0; k<3; k++ ) { 
 	ptr[n].f[k] -= alpha[1]*ptr[n].v[k]*ptr[n].m;
-
+      }
+    }
+  }
+  
 }
 
 
-void sep_nosehoover(seppart *ptr, double Td, double *alpha, 
+void _sep_nosehoover(seppart *ptr, double Td, double *alpha, 
 		    const double Q, sepsys *sys){ 
  
   double ekin = 0.0;

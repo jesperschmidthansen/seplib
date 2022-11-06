@@ -70,7 +70,7 @@ int main(void){
     sep_coulomb_sf(atoms, cf, &sys, &ret, SEP_EXCL_SAME_MOL);
 
     // Integrate particles forward in time 
-    sep_nosehoover(atoms, temp, alpha, 10.0, &sys);
+    sep_nosehoover(atoms, 'C', temp, alpha, 10.0, &sys);
     sep_leapfrog(atoms, &sys, &ret);
 
     // Isotropic compression 

@@ -18,7 +18,7 @@ int main(void){
  
   // Setting parameter values 
   double dt = 0.001;
-  double alpha[3] = {0.1};
+  double alpha  = 0.1;
   double desired_temp = 4.0;
   double desired_rho = 1.46;
   double rbcoef[] = {15.5000,  20.3050, -21.9170, -5.1150,  43.8340, -52.6070};
@@ -79,7 +79,7 @@ int main(void){
     }
       
     // Integrate particles forward in time 
-    sep_nosehoover(atoms, desired_temp, alpha, 10.0, &sys);
+    sep_nosehoover(atoms, 'C', desired_temp, &alpha, 0.1, &sys);
     sep_leapfrog(atoms, &sys, &ret);
      
     // Compress - equilibrate

@@ -17,7 +17,7 @@ int main(void){
   sepsampler sampler;
   double t, dt, rcut, 
     dens, lbox, temp,
-    etot, sump, Q, alpha[3]={0.1};
+    etot, sump, tau, alpha=0.1;
   int natoms, n, nloops;
 
   // Setting parameter values 
@@ -25,7 +25,7 @@ int main(void){
   temp = 1.0;
   natoms = 1000;
   rcut = pow(2.0, 1./6.); 
-  Q = 10.0;
+  tau = .1;
   nloops = 50000;
   dt = 0.005;
 
@@ -61,7 +61,7 @@ int main(void){
     sep_force_pairs(atoms, "AA", rcut, sep_lj_shift, &sys, &ret, SEP_ALL);
       
     // Integrate particles forward in time
-    sep_nosehoover(atoms, temp, alpha, Q, &sys);
+    sep_nosehoover(atoms, 'A', temp, &alpha, tau, &sys);
     sep_leapfrog(atoms, &sys, &ret);
     
     // Sample

@@ -22,7 +22,7 @@ int main(void){
  
   // Setting parameter values 
   double dt = 0.001;
-  double alpha[3] = {0.1};
+  double alpha= 0.1;
   double temp = 4.0;
   double rbcoef[] = {15.5000,  20.3050, -21.9170, -5.1150,  43.8340, -52.6070};
 
@@ -70,7 +70,7 @@ int main(void){
     sep_torsion_Ryckaert(atoms, 0, rbcoef, &sys, &ret);
 
     // Integrate particles forward in time 
-    sep_nosehoover(atoms, temp, alpha, 10.0, &sys);
+    sep_nosehoover(atoms, 'C', temp, &alpha, 0.1, &sys);
     sep_leapfrog(atoms, &sys, &ret);
 
     // Sample

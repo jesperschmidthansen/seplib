@@ -56,22 +56,9 @@ void sep_langevinGJF(sepatom *ptr, double temp0, double alpha, sepsys *sys, sepr
  * @param Q Thermostat 'mass'
  * @param sys Pointer to seplib system structure
  */
-void sep_nosehoover_type(seppart *ptr, char type, double Td, 
-			 double *alpha, const double Q, sepsys *sys);
+void sep_nosehoover(seppart *ptr, char type, double Td, 
+		    double *alpha, const double Q, sepsys *sys);
 
-/**
- * Updates the Nose-Hoover thermostat friction coefficient and adds the
- * corresponding force to all system particles. Used before and in
- * connection with the leap-frog algorithm 
- * @param ptr Pointer to the seplib particle structure
- * @param Td Desired temperature
- * @param alpha Thermostat state; double array of length 3. Must be initialized eg alpha[3]={0.1}
- * @param Q Thermostat 'mass'
- * @param sys Pointer to seplib system structure
- */
-void sep_nosehoover(seppart *ptr, double Td, double *alpha, const double Q, 
-		    sepsys *sys);
- 
 /**
  * Updates the positions and velocties with Langevin dynamics - Fokker-Planck level. 
  * Currently the integrator applies to all system particles.
