@@ -70,7 +70,7 @@ int main(void){
     sep_torsion_Ryckaert(atoms, 0, rbcoef, &sys, &ret);
 
     // Integrate particles forward in time 
-    sep_nosehoover(atoms, 'C', temp, &alpha, 0.1, &sys);
+    sep_nosehoover(atoms, temp, &alpha, 0.1, &sys);
     sep_leapfrog(atoms, &sys, &ret);
 
     // Sample

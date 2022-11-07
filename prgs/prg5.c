@@ -79,7 +79,7 @@ int main(void){
     }
       
     // Integrate particles forward in time 
-    sep_nosehoover(atoms, 'C', desired_temp, &alpha, 0.1, &sys);
+    sep_nosehoover(atoms, desired_temp, &alpha, 0.1, &sys);
     sep_leapfrog(atoms, &sys, &ret);
      
     // Compress - equilibrate

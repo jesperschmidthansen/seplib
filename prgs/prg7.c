@@ -48,7 +48,7 @@ int main(void){
     sep_force_pairs(atoms, "AA", 2.5, sep_lj_shift, &sys, &ret, SEP_ALL);
 
     // Integrate particles forward in time 
-    sep_nosehoover(atoms, 'A', 0.5, &alpha, 0.1, &sys);
+    sep_nosehoover(atoms, 0.5, &alpha, 0.1, &sys);
     sep_leapfrog(atoms, &sys, &ret);
    
     // The Berensen barostat
