@@ -80,7 +80,8 @@ void sep_verlet_dpd(seppart *ptr, double lambda, int stepnow,
 
 
 #ifndef DOXYGEN_SKIP
-
+void _sep_nosehoover_type(seppart *ptr, char type, double Td, 
+			  double *alpha, const double Q, sepsys *sys);
 void sep_set_shake(sepmol *mols, unsigned nuau, 
 		   int nb, double *blength, sepsys sys);
 
