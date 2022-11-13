@@ -1,0 +1,5 @@
+{
+   "name": "seplib",
+   "files": [ {"directory": ".", "filters": ["*.c", "Makefile", "*.jl", "*.tex", "*.m", "*.txt"], "recursive": 1} ]
+}
+  
