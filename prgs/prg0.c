@@ -14,8 +14,7 @@ int main(void){
   sepatom *atoms;
   sepsys system;
   sepret returns;
-  double t, dt, rcut,
-    dens, lbox,
+  double t, dt, rcut, dens, lbox,
     etot, sump, tstart;
   int natoms, n, nloops;
  

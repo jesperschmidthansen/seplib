@@ -3,7 +3,7 @@
 # Macros
 
 CC          =  gcc
-CFLAGS      =  -g -W -Wextra -Wpedantic -Ofast -fgnu89-inline -std=c99 -fPIC #@OMPFLAG@ 
+CFLAGS      =  -W -Wextra -Wpedantic -Ofast -fgnu89-inline -std=c99 -fPIC -g #@OMPFLAG@ 
 RANLIB      =  ranlib
 AR          =  ar 
 COMPLEX     =  -DCOMPLEX

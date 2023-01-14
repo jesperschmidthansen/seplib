@@ -55,8 +55,7 @@ int main(void){
         		      
     // Printing stuff 
     if ( n%100 == 0 ){
-      printf("%d %.2f %f %f %f \n", n, returns.ekin*2/(3*natoms),
-	     atoms[10].x[0],atoms[10].x[1],atoms[10].x[2]);
+      printf("%d %.2f %f %f %f \n", n, returns.ekin*2/(3*natoms), atoms[10].x[0],atoms[10].x[1],atoms[10].x[2]);
       SEP_FLUSH;
     }
 
