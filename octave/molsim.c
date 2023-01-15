@@ -286,11 +286,11 @@ void action_load(int nrhs, const mxArray **prhs){
     char *file = mxArrayToString(prhs[2]);
     
     atoms = sep_init_xyz(lbox, &natoms, file, 'v');
-
-    sys = sep_sys_setup(lbox[0], lbox[1], lbox[2],
-			maxcutoff, dt, natoms, SEP_LLIST_NEIGHBLIST);
+    sys = sep_sys_setup(lbox[0], lbox[1], lbox[2],maxcutoff, dt, natoms, SEP_LLIST_NEIGHBLIST);
 
     initflag = true;
+
+    sep_set_vel_seed(atoms, 1.0, 42, sys); // Basically reset momentum
     
 #ifdef OCTAVE
     free(file);
@@ -376,7 +376,7 @@ void action_calcforce(int nrhs, const mxArray **prhs){
       sep_angle_harmonic(atoms, type, angle, constant, &sys, &ret);
     }
     // Torsion force
-    else if ( strcmp(specifier, "torsion")==0 ) {
+    else if ( strcmp(specifier, "torsion")==0 || strcmp(specifier, "dihedral")==0 ) {
       if ( nrhs != 4 ) inputerror(__func__);
  
       int type =  (int)mxGetScalar(prhs[2]);
@@ -467,6 +467,12 @@ void action_integrate(int nrhs, const mxArray **prhs){
       double lambda = mxGetScalar(prhs[2]);
       sep_verlet_dpd(atoms, lambda, iterationNumber, &sys, &ret);
     }
+    else if( strcmp(specifier, "langevin") == 0 ){
+      if ( nrhs != 4 ) inputerror(__func__);
+      double temp0 = mxGetScalar(prhs[2]);
+      double alpha = mxGetScalar(prhs[3]);
+      sep_langevinGJF(atoms, temp0, alpha, &sys, &ret);
+    } 
     else
       mexErrMsgTxt("Action 'integrate' - not valid valid specifier\n");
 
@@ -479,24 +485,52 @@ void action_integrate(int nrhs, const mxArray **prhs){
 
 void action_thermostate(int nrhs, const mxArray **prhs){
   
-    if ( nrhs != 5 ) inputerror(__func__);
+  char *specifier = mxArrayToString(prhs[1]);
+  
+  if ( strcmp(specifier, "relax") == 0 ){
     
-    char *specifier = mxArrayToString(prhs[1]);
+    if ( nrhs != 5 ) inputerror(__func__);
+   
     char *types =  mxArrayToString(prhs[2]);
     double Temp0 = mxGetScalar(prhs[3]);
     double tauQ =  mxGetScalar(prhs[4]);
     
-    if ( strcmp(specifier, "relax") == 0 )
-      sep_relax_temp(atoms, types[0], Temp0, tauQ, &sys);
-    else if ( strcmp(specifier, "nosehoover")==0 )
-      sep_nosehoover_type(atoms, types[0], Temp0, alpha, tauQ, &sys);
-    else
-      mexErrMsgTxt("Action 'thermostate' - not valid valid specifier\n");
-
+    sep_relax_temp(atoms, types[0], Temp0, tauQ, &sys);
+          
 #ifdef OCTAVE
-    free(types); free(specifier);
+    free(types); 
 #endif
 
+  }
+  else if ( strcmp(specifier, "nosehoover")==0 ){
+    
+    if ( nrhs == 4 ){ 
+
+      double Temp0 = mxGetScalar(prhs[2]);
+      double tauQ =  mxGetScalar(prhs[3]);
+      
+      sep_nosehoover(atoms, Temp0, alpha, 1.0/tauQ, &sys);
+    }
+    else if ( nrhs== 5 ){
+      
+      char *types =  mxArrayToString(prhs[2]);
+      double Temp0 = mxGetScalar(prhs[3]);
+      double tauQ =  mxGetScalar(prhs[4]);
+      
+      _sep_nosehoover_type(atoms, types[0], Temp0, alpha, tauQ, &sys);
+      
+#ifdef OCTAVE
+    free(types); 
+#endif
+    }
+  }
+  else
+    mexErrMsgTxt("Action 'thermostate' - not valid valid specifier\n");
+
+#ifdef OCTAVE
+    free(specifier); 
+#endif
+  
 }
 
 
@@ -682,8 +716,8 @@ void action_get(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs){
   else if ( strcmp("indices", specifier)==0 ){
     if ( nrhs!= 3 ) inputerror(__func__);
     
-    unsigned int molindex = (unsigned)mxGetScalar(prhs[2]);
-    if ( molindex - 1 > sys.molptr->num_mols )
+    unsigned int molindex = (unsigned)mxGetScalar(prhs[2]) - 1;
+	if ( molindex > 0 && molindex-1 > sys.molptr->num_mols )
       mexErrMsgTxt("Molecular index larger than number of molecules \n");    
 
     const long nuau = (long unsigned)mols[molindex].nuau;
@@ -691,7 +725,7 @@ void action_get(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs){
     int *ptr = (int *)mxGetPr(plhs[0]);
 
     for ( unsigned n=0; n<mols[molindex].nuau; n++ )
-      ptr[n] = mols[molindex].index[n];
+      ptr[n] = mols[molindex].index[n] + 1;
   }
   // Molecular end-to-end
   else if ( strcmp("endtoend", specifier)==0 ){
@@ -800,7 +834,7 @@ void action_sample(int nrhs, const mxArray **prhs){
       sampler = sep_init_sampler();
 
       if ( initmol ) 
-	sep_add_mol_sampler(&sampler, mols);  
+		sep_add_mol_sampler(&sampler, mols);  
     }
     
     char *specifier =  mxArrayToString(prhs[1]);
@@ -857,9 +891,9 @@ void action_sample(int nrhs, const mxArray **prhs){
     else if ( strcmp(specifier, "radial")==0 ){
       if ( nrhs != 5 ) inputerror(__func__);
       int lvec = (int)mxGetScalar(prhs[2]);
-      int sampleinterval = (int)mxGetScalar(prhs[3]);
+      int nsample = (int)mxGetScalar(prhs[3]);
       char *types =  mxArrayToString(prhs[4]);
-      sep_add_sampler(&sampler, "radial", sys, lvec, sampleinterval, types);
+      sep_add_sampler(&sampler, "radial", sys, lvec, nsample, types);
 #ifdef OCTAVE
       free(types);
 #endif
@@ -1016,7 +1050,7 @@ void action_compress(int nrhs, const mxArray **prhs){
     int dir = (int)mxGetScalar(prhs[2])-1;
 
     if ( dir <0 || dir > 2 )
-      mexErrMsgTxt("Direction in compress specifier must be 0-2");
+      mexErrMsgTxt("Direction in compress specifier must be 1-3");
     
     sep_compress_box_dir_length(atoms, target, compressionfactor, dir, &sys);
   }
