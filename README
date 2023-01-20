@@ -4,19 +4,19 @@
 seplib is a flexible lightweight stand alone and easy hackable
 molecular dynamics software package written in standard C99. seplib
 consists of (i) the seplib kernel library, (ii) auxillary tools for
-simulation setup and post run data analysis, and (iii) a suit of
+simulation setup and post run data analysis, and (iii) a suite of
 test/example programs.
 
 ---REQUIREMENTS--- 
 
-An iso-C99 compiler. Openmp compiler support required for parallisation.
+An iso-C99 compiler. Openmp compiler support required for parallization.
 
 For easy installation: make-utils. 
 
 ---INSTALLATION---
 
 1) Download the sep.tar.gz
-2) Unpack by fx: 'tar -zxvf sep.tar.gz'. A new directory
+2) Unpack compressed file using 'tar -zxvf sep.tar.gz'. A new directory
    seplib will be created.	
 3) Change directory to seplib
 4) Type: './configure'
