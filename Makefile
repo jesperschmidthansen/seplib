@@ -1,4 +1,5 @@
 # Makefile.in for sep-library
+# BUILD seplibcuda use make -B cuda
 
 # Macros
 
@@ -40,20 +41,18 @@ clean:
 	rm -f $(PRGS)
 	rm -f source/*~
 	rm -f include/*~
-	rm -f mpi/*~
 	rm -f doc/*~
 	rm -f prgs/*~
 	rm -f mydoc/*~
 	rm -f *~
 	rm -f $(TOOLS)
+	rm -f cuda/*.o cuda/*.a
 
 # Compiling programmes
 test: $(PRGS)
 
 test/%:prgs/%.c
 	$(CC) $(CFLAGS) $(OMP) -o $@ -Llib/ -Iinclude $^ -lsep -lm
-
-# Compiling tools
 
 # Compiling tools
 tools: $(TOOLS)
@@ -63,3 +62,7 @@ tools/%:tools/%.c
 	$(CC) $(CFLAGS) $(OMP) -Iinclude -c tools/_sep_sfg.c
 	$(CC) $(CFLAGS) $(OMP) _sep_lattice.o -o tools/sep_lattice tools/sep_lattice.c -lm
 	$(CC) $(CFLAGS) $(OMP) _sep_sfg.o -o tools/sep_sfg tools/sep_sfg.c -lm	
+
+# CUDA support
+cuda:
+	(cd cuda; make)

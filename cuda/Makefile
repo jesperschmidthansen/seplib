@@ -1,9 +1,12 @@
 
+
 COPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 --relocatable-device-code=true
 #COPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 -gencode arch=compute_35,code=sm_35 --relocatable-device-code=true
 
-all: sepcuda.o sepcudasampler.o sepcudamol.o tgpu_0 tgpu_1 tgpu_2 tcpu_0
+OBJECTFILES = sepcuda.o sepcudamol.o sepcudasampler.o
 
+all: libsepcuda.a tgpu_0 tgpu_1 tgpu_2 tcpu_0
+	
 # CPU comparison test 
 tcpu_0: tcpu_0.c
 	gcc -W -Wextra -fopenmp -Ofast -o tcpu_0 tcpu_0.c -lsep -lm 
@@ -20,6 +23,10 @@ tgpu_1: sepcuda.o sepcudasampler.o tgpu_1.cu
 tgpu_0: sepcuda.o tgpu_0.cu
 	nvcc $(COPTIONS) -o tgpu_0 sepcuda.o tgpu_0.cu 
 
+# The library
+libsepcuda.a: $(OBJECTFILES)
+	ar r libsepcuda.a $(OBJECTFILES)
+	ranlib libsepcuda.a
 
 sepcudamol.o: sepcudamol.cu sepcudamol.h
 	nvcc -c $(COPTIONS) sepcudamol.cu 
@@ -29,4 +36,3 @@ sepcudasampler.o: sepcudasampler.cu sepcudasampler.h
 
 sepcuda.o: sepcuda.cu sepcuda.h
 	nvcc -c $(COPTIONS) sepcuda.cu 
-
