@@ -22,7 +22,7 @@ typedef struct{
 	
 	unsigned maxneighb; 
 	int *neighblist; // neighb indicies + trailing -1s
-	
+	int3 *hcrossings, *dcrossings; // Simulation box crossing
 	int4 *hexclusion, *dexclusion; // Exclusions (atom index) 
 
 	float *epot;  // Potential energy on particle - on device
@@ -77,6 +77,7 @@ bool sep_cuda_check_neighblist(sepcupart *ptr, float maxdist);
 
 void sep_cuda_copy_energies(sepcusys *sptr);
 void sep_cuda_save_xyz(sepcupart *ptr, const char *xyzfile);
+void sep_cuda_save_crossings(sepcupart *ptr, const char *filestr, float time);
 
 void sep_cuda_copy_exclusion(sepcupart *pptr);
 void sep_cuda_reset_exclusion(sepcupart *pptr);
@@ -95,6 +96,8 @@ __global__ void sep_cuda_lj(const char type1, const char type2, float3 ljparams,
 							float *epot, float4 *press, unsigned nneighbmax, float3 lbox, const unsigned npart);
 __global__ void sep_cuda_lj(float3 params, int *neighblist, float4 *pos, float4 *force,
 							float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart);
+__global__ void sep_cuda_lj_sf(const char type1, const char type2, float3 params, int *neighblist, float4 *pos, float4 *force,
+								float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart);
 
 __global__ void sep_cuda_sf(float cf, int *neighblist, float4 *pos, float4 *vel, float4 *force,
 							float *epot, float4 *press, unsigned nneighbmax, float3 lbox, const unsigned npart);
@@ -119,17 +122,17 @@ __global__ void sep_cuda_nosehoover(float *alpha, float4 *pos, float4 *vel, floa
 // Device functions 
 __device__ float sep_cuda_wrap(float x, float lbox);
 
-__device__ float sep_cuda_periodic(float x, float lbox);
+__device__ float sep_cuda_periodic(float x, float lbox, int *crossings);
 
 __device__ float sep_cuda_dot(float4 a);
 __device__ float sep_cuda_dot(float3 a, float3 b);
-
 
 __device__ bool sep_cuda_check_exclude(int x, int y, int z, int w, int idxj);
 
 // Wrappers
 void sep_cuda_force_lj(sepcupart *pptr, const char types[], float params[3]);
 void sep_cuda_force_lj(sepcupart *pptr, float params[3]);
+void sep_cuda_force_lj_sf(sepcupart *pptr, const char types[], float params[3]);
 void sep_cuda_force_sf(sepcupart *pptr, const float cf);
 void sep_cuda_thermostat_nh(sepcupart *pptr, sepcusys *sptr, float temp0, float tau);
 void sep_cuda_reset_iteration(sepcupart *pptr, sepcusys *sptr);

@@ -39,6 +39,8 @@ sepcupart* sep_cuda_allocate_memory(unsigned npartPadding){
 	if ( cudaMallocHost((void **)&(ptr->hexclusion), npartPadding*sizeof(int4)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
+	if ( cudaMallocHost((void **)&(ptr->hcrossings), npartPadding*sizeof(int3)) == cudaErrorMemoryAllocation )
+		sep_cuda_mem_error();
 	
 	
 	if ( cudaMalloc((void **)&(ptr->dx), nbytes) == cudaErrorMemoryAllocation )
@@ -69,6 +71,8 @@ sepcupart* sep_cuda_allocate_memory(unsigned npartPadding){
 	if ( cudaMalloc(&(ptr->neighblist), sizeof(int)*npartPadding*(ptr->maxneighb)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 
+	if ( cudaMalloc((void **)&(ptr->dcrossings), npartPadding*sizeof(int3)) == cudaErrorMemoryAllocation )
+		sep_cuda_mem_error();
 	
 	return ptr;
 }
@@ -76,30 +80,23 @@ sepcupart* sep_cuda_allocate_memory(unsigned npartPadding){
 void sep_cuda_free_memory(sepcupart *ptr, sepcusys *sptr){
 	
 	// Particle structure
-	cudaFreeHost(ptr->hx); 
-	cudaFreeHost(ptr->hv); 
-	cudaFreeHost(ptr->hf); 
-	cudaFreeHost(ptr->hexclusion);
+	cudaFreeHost(ptr->hx); 	cudaFreeHost(ptr->hv); 
+	cudaFreeHost(ptr->hf); 	cudaFreeHost(ptr->ht);
 	
-	cudaFree(ptr->dx); 
-	cudaFree(ptr->dv); 
-	cudaFree(ptr->df);
+	cudaFreeHost(ptr->hexclusion); cudaFreeHost(ptr->hcrossings);
 	
-	cudaFree(ptr->ddist);
-	cudaFree(ptr->neighblist);
+	cudaFree(ptr->dx); cudaFree(ptr->dv); cudaFree(ptr->df);
+	cudaFree(ptr->ddist); cudaFree(ptr->neighblist);
+	cudaFree(ptr->epot); cudaFree(ptr->press); cudaFree(ptr->sumpress); 
 	
-	cudaFree(ptr->epot);	
-	cudaFree(ptr->press);
-	cudaFree(ptr->sumpress);
-	cudaFree(ptr->dexclusion);
-	
+	cudaFree(ptr->dexclusion); cudaFree(ptr->dcrossings);
 	cudaFreeHost(ptr);
 	
 	// System structure
 	cudaFree(sptr->denergies); cudaFreeHost(sptr->henergies);
-	cudaFree(sptr->dalpha); 
+	cudaFree(sptr->dalpha); cudaFree(sptr->dupdate); 
 	
-	cudaFree(sptr);
+	cudaFreeHost(sptr);
 }
 
 
@@ -118,6 +115,10 @@ void sep_cuda_copy(sepcupart *ptr, char opt_quantity, char opt_direction){
 				for ( int n=0; n<ptr->npart_padding; n++ ) ptr->hf[n].w = (float)(ptr->ht[n]);
 				cudaMemcpy(ptr->df, ptr->hf, nbytes, cudaMemcpyHostToDevice);	
 			} 
+			else if ( opt_quantity == 'c' ){
+				nbytes = ptr->npart_padding*sizeof(int3);
+				cudaMemcpy(ptr->dcrossings, ptr->hcrossings, nbytes, cudaMemcpyHostToDevice);
+			}
 			else {
 				fprintf(stderr, "Invalid opt_quantity");
 				exit(EXIT_FAILURE);
@@ -131,6 +132,10 @@ void sep_cuda_copy(sepcupart *ptr, char opt_quantity, char opt_direction){
 				cudaMemcpy(ptr->hv, ptr->dv, nbytes, cudaMemcpyDeviceToHost);
 			else if ( opt_quantity == 'f' )
 				cudaMemcpy(ptr->hf, ptr->df, nbytes, cudaMemcpyDeviceToHost);
+			else if ( opt_quantity == 'c' ){
+				nbytes = ptr->npart_padding*sizeof(int3);
+				cudaMemcpy(ptr->hcrossings, ptr->dcrossings, nbytes, cudaMemcpyDeviceToHost);
+			}
 			else {
 				fprintf(stderr, "Invalid opt_quantity");
 				exit(EXIT_FAILURE);
@@ -141,6 +146,9 @@ void sep_cuda_copy(sepcupart *ptr, char opt_quantity, char opt_direction){
 			fprintf(stderr, "Invalid opt_direction");
 			exit(EXIT_FAILURE);
 	}
+	
+	// Aparently, the device not synchronized copying to hist ...
+	cudaDeviceSynchronize();
 	
 }
 
@@ -176,6 +184,7 @@ sepcupart* sep_cuda_load_xyz(const char *xyzfile){
 		fscanf(fin, "%c %f %f %f %f %f %f %f %f\n", 
 			   &(ptr->ht[n]), &(ptr->hx[n].x),&(ptr->hx[n].y),&(ptr->hx[n].z), 
 			   &(ptr->hv[n].x),&(ptr->hv[n].y),&(ptr->hv[n].z), &(ptr->hx[n].w), &(ptr->hv[n].w));
+		ptr->hcrossings[n].x = ptr->hcrossings[n].y = ptr->hcrossings[n].z = 0;
 	}
 	
 	fclose(fin);
@@ -189,6 +198,7 @@ sepcupart* sep_cuda_load_xyz(const char *xyzfile){
 	sep_cuda_copy(ptr, 'x', 'd'); 
 	sep_cuda_copy(ptr, 'v', 'd');
 	sep_cuda_copy(ptr, 'f', 'd');
+	sep_cuda_copy(ptr, 'c', 'd');
 	
 	sep_cuda_reset_exclusion(ptr);
 	
@@ -266,6 +276,25 @@ void sep_cuda_save_xyz(sepcupart *ptr, const char *filestr){
 		fprintf(fout, "%f %f %f ", ptr->hv[n].x, ptr->hv[n].y, ptr->hv[n].z);
 		fprintf(fout, "%f %f\n", ptr->hx[n].w, ptr->hv[n].w);
 	}
+	
+	fclose(fout);
+	
+}
+
+void sep_cuda_save_crossings(sepcupart *ptr, const char *filestr, float time){
+
+	FILE *fout = fopen(filestr, "w");
+	if ( fout == NULL ) sep_cuda_file_error();
+		
+	sep_cuda_copy(ptr, 'c','h');
+	
+	fprintf(fout, "%f %f %f\n", time, 0.0f, 0.0f); // To make it easier to load
+	
+	
+	for ( int n=0; n<ptr->npart; n++ )
+		fprintf(fout, "%d %d %d \n", 
+				ptr->hcrossings[n].x, ptr->hcrossings[n].y, ptr->hcrossings[n].z);
+	
 	
 	fclose(fout);
 	
@@ -559,6 +588,72 @@ __global__ void sep_cuda_lj(float3 params, int *neighblist, float4 *pos, float4 
 }
 
 
+
+__global__ void sep_cuda_lj_sf(const char type1, const char type2, float3 params, int *neighblist, float4 *pos, float4 *force,
+								float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart){
+
+	
+	int pidx = blockDim.x * blockIdx.x + threadIdx.x;
+	
+	if ( pidx < npart ) {
+		
+		int itype = __float2int_rd(force[pidx].w);
+		int atype = (int)type1; int btype = (int)type2; //cast stupid
+		
+		if ( itype != atype && itype != btype ) return;
+		
+		float sigma = params.x; 
+		float epsilon = params.y; 
+		float cf = params.z; //__ldg does not work..?
+		float cfsqr = cf*cf; 
+		float Epot_shift = 4.0*epsilon*(powf(sigma/cf, 12.) - powf(sigma/cf,6.));
+		float force_shift = 48.0*epsilon*powf(sigma/cf,6.0)*(powf(sigma/cf,3.0) - 0.5)*pow(sigma/cf, 2.0);
+		
+		int offset = pidx*maxneighb;
+			
+		float mpx = __ldg(&pos[pidx].x); float mpy = __ldg(&pos[pidx].y); float mpz = __ldg(&pos[pidx].z);
+				
+		float Fx = 0.0f; float Fy = 0.0f; float Fz = 0.0f; 
+		float Epot = 0.0f; 
+		float4 mpress; mpress.x = mpress.y = mpress.z = mpress.w = 0.0f;
+		int n = 0;
+		while ( neighblist[n+offset] != -1 ){
+			int pjdx = neighblist[n+offset];
+			int jtype = __float2int_rd(force[pjdx].w);
+			
+			if ( (itype == atype && jtype == btype) || (itype == btype && jtype == atype) ){
+				
+				float dx = mpx - pos[pjdx].x; dx = sep_cuda_wrap(dx, lbox.x);
+				float dy = mpy - pos[pjdx].y; dy = sep_cuda_wrap(dy, lbox.y);
+				float dz = mpz - pos[pjdx].z; dz = sep_cuda_wrap(dz, lbox.z);
+
+				float distSqr = dx*dx + dy*dy + dz*dz;
+
+				if ( distSqr < cfsqr ) {
+					float rri = sigma/distSqr; 
+					float rri3 = rri*rri*rri;
+					float ft = 48.0*epsilon*rri3*(rri3 - 0.5)*rri + force_shift;
+				
+					Fx += ft*dx; Fy += ft*dy; Fz += ft*dz;
+					Epot += 0.5*(4.0*epsilon*rri3*(rri3 - 1.0) - Epot_shift);
+					mpress.x += dx*ft*dx + dy*ft*dy + dz*ft*dz; 
+					mpress.y += dx*ft*dy; mpress.z += dx*ft*dz; mpress.w += dy*ft*dz;
+				}
+			}
+			
+			n++;
+		}
+		
+		force[pidx].x += Fx; force[pidx].y += Fy; force[pidx].z += Fz;
+		epot[pidx] += Epot; 
+		press[pidx].x += mpress.x;
+		press[pidx].y += mpress.y; press[pidx].z += mpress.z; press[pidx].w += mpress.w; 
+	}
+		
+}
+
+
+
 __global__ void sep_cuda_sf(float cf, int *neighblist, float4 *pos, float4 *vel, float4 *force,
 							float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart){
 	
@@ -613,7 +708,7 @@ __global__ void sep_cuda_sf(float cf, int *neighblist, float4 *pos, float4 *vel,
 }
 
 
-__global__ void sep_cuda_leapfrog(float4 *pos, float4 *vel, float4 *force, float *dist, float dt, float3 lbox, unsigned npart){
+__global__ void sep_cuda_leapfrog(float4 *pos, float4 *vel, float4 *force, float *dist, int3 *crossing, float dt, float3 lbox, unsigned npart){
 
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
 	
@@ -625,9 +720,14 @@ __global__ void sep_cuda_leapfrog(float4 *pos, float4 *vel, float4 *force, float
 		vel[i].y += force[i].y*imass*dt;
 		vel[i].z += force[i].z*imass*dt;
 		
-		pos[i].x += vel[i].x*dt; pos[i].x = sep_cuda_periodic(pos[i].x, lbox.x);
-		pos[i].y += vel[i].y*dt; pos[i].y = sep_cuda_periodic(pos[i].y, lbox.y);
-		pos[i].z += vel[i].z*dt; pos[i].z = sep_cuda_periodic(pos[i].z, lbox.z);
+		pos[i].x += vel[i].x*dt; 
+		pos[i].x = sep_cuda_periodic(pos[i].x, lbox.x, &(crossing[i].x));
+		
+		pos[i].y += vel[i].y*dt;
+		pos[i].y = sep_cuda_periodic(pos[i].y, lbox.y, &(crossing[i].y));
+		
+		pos[i].z += vel[i].z*dt; 
+		pos[i].z = sep_cuda_periodic(pos[i].z, lbox.z, &(crossing[i].z));
 					
 		float dx = oldpos.x - pos[i].x; dx = sep_cuda_wrap(dx, lbox.x);
 		float dy = oldpos.y - pos[i].y; dy = sep_cuda_wrap(dy, lbox.y);
@@ -788,12 +888,16 @@ __device__ float sep_cuda_wrap(float x, float lbox){
 	return x;
 }
 
-__device__ float sep_cuda_periodic(float x, float lbox){
+__device__ float sep_cuda_periodic(float x, float lbox, int *crossing){
 	
-	if ( x > lbox ) 
-		x -= lbox;                        
-	else if  ( x < 0 ) 
+	if ( x > lbox ) {
+		x -= lbox;  
+		*crossing = *crossing + 1;
+	}
+	else if  ( x < 0 ) {
 		x += lbox;
+		*crossing = *crossing - 1;
+	}
 	
 	return x;
 }
@@ -833,6 +937,20 @@ void sep_cuda_force_lj(sepcupart *pptr, float params[3]){
 	sep_cuda_lj<<<nb, nt>>>
 		(ljparams, pptr->neighblist, pptr->dx, pptr->df, pptr->epot, pptr->press, pptr->maxneighb, pptr->lbox, pptr->npart);
 		
+	cudaDeviceSynchronize();
+
+}
+
+
+void sep_cuda_force_lj_sf(sepcupart *pptr, const char types[], float params[3]){
+	const int nb = pptr->nblocks; 
+	const int nt = pptr->nthreads;
+	
+	float3 ljparams = make_float3(params[0],params[1],params[2]);
+	
+	sep_cuda_lj_sf<<<nb, nt>>>
+		(types[0], types[1], ljparams, pptr->neighblist, pptr->dx, pptr->df, pptr->epot, 
+											pptr->press, pptr->maxneighb, pptr->lbox, pptr->npart);
 	cudaDeviceSynchronize();
 
 }
@@ -900,7 +1018,7 @@ void sep_cuda_integrate_leapfrog(sepcupart *pptr, sepcusys *sptr){
 	const int nt = sptr->nthreads;
 
 	sep_cuda_leapfrog<<<nb, nt>>>
-		(pptr->dx, pptr->dv, pptr->df, pptr->ddist, sptr->dt, pptr->lbox, pptr->npart);
+		(pptr->dx, pptr->dv, pptr->df, pptr->ddist, pptr->dcrossings, sptr->dt, pptr->lbox, pptr->npart);
 	cudaDeviceSynchronize();
 	
 }

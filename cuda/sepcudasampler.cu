@@ -87,7 +87,7 @@ void sep_cuda_sample_gh(sepcugh *sampleptr, sepcupart *pptr, sepcusys *sptr){
 	unsigned index = sampleptr->index;
 	
 	for ( unsigned k=0; k<sampleptr->nwaves; k++ ){
-
+	  
 		double mcoskr = 0.0;	double msinkr = 0.0;
 		double vcoskr = 0.0;	double vsinkr = 0.0;
 
@@ -114,14 +114,13 @@ void sep_cuda_sample_gh(sepcugh *sampleptr, sepcupart *pptr, sepcusys *sptr){
 		
 		sampleptr->stressa[index][k] = stressa;
 		sampleptr->stressb[index][k] = stressb;
-
+	
 	}
 	
 	(sampleptr->index)++;
-	
 	if ( sampleptr->index == sampleptr->lvec){
 	
-		for ( unsigned k=0; k<sampleptr->nwaves; k++ ){
+	   for ( unsigned k=0; k<sampleptr->nwaves; k++ ){
 			
 			for ( unsigned n=0; n<sampleptr->lvec; n++ ){
 				for ( unsigned nn=0; nn<sampleptr->lvec-n; nn++ ){
@@ -143,19 +142,18 @@ void sep_cuda_sample_gh(sepcugh *sampleptr, sepcupart *pptr, sepcusys *sptr){
 				}
 			}
 		}
-		
 		(sampleptr->nsample)++;
-		
-		FILE *fout_dacf = fopen("gh-dacf.dat", "w");
+
 		FILE *fout_tmacf = fopen("gh-tmacf.dat", "w");
+		FILE *fout_dacf = fopen("gh-dacf.dat", "w");
 		FILE *fout_stress = fopen("gh-stress.dat", "w");
-		
+
 		if ( fout_dacf == NULL || fout_tmacf == NULL || fout_stress == NULL ){
 			fprintf(stderr, "Couldn't open file(s)\n");
 		}
-		
-		double volume = sptr->lbox.x*sptr->lbox.y*sptr->lbox.z;
-		
+
+				double volume = sptr->lbox.x*sptr->lbox.y*sptr->lbox.z;
+
 		for ( unsigned n=0; n<sampleptr->lvec; n++ ){
 			double fac = 1.0/(sampleptr->nsample*volume*(sampleptr->lvec-n));
 			double t   = n*sampleptr->dtsample;
@@ -170,11 +168,12 @@ void sep_cuda_sample_gh(sepcugh *sampleptr, sepcupart *pptr, sepcusys *sptr){
 			 }
 			 fprintf(fout_dacf, "\n"); fprintf(fout_tmacf, "\n");fprintf(fout_stress, "\n");
 		}
-		 
-		fclose(fout_dacf);fclose(fout_tmacf);fclose(fout_stress);
-		
+	
+		fclose(fout_dacf); 
+		fclose(fout_tmacf);	
+		fclose(fout_stress);
+	
 		sampleptr->index = 0;
 	}
 			
 }
-
