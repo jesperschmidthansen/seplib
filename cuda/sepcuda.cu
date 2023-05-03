@@ -60,13 +60,13 @@ sepcupart* sep_cuda_allocate_memory(unsigned npartPadding){
 	
 	if ( cudaMalloc((void **)&(ptr->press), nbytes) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
-	
+
 	if ( cudaMalloc((void **)&(ptr->sumpress), sizeof(float4)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
 	if ( cudaMalloc((void **)&(ptr->dexclusion), npartPadding*sizeof(int4)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
-	
+
 	ptr->maxneighb = SEP_CUDA_MAXNEIGHBS;
 	if ( cudaMalloc(&(ptr->neighblist), sizeof(int)*npartPadding*(ptr->maxneighb)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
@@ -172,7 +172,7 @@ sepcupart* sep_cuda_load_xyz(const char *xyzfile){
 	unsigned npartwithPadding = nblocks*nthreads;
 	
 	sepcupart *ptr = sep_cuda_allocate_memory(npartwithPadding);
-
+		
 	ptr->nblocks = nblocks; 
 	ptr->nthreads = nthreads;
 	ptr->npart = npart; 
@@ -294,7 +294,6 @@ void sep_cuda_save_crossings(sepcupart *ptr, const char *filestr, float time){
 	for ( int n=0; n<ptr->npart; n++ )
 		fprintf(fout, "%d %d %d \n", 
 				ptr->hcrossings[n].x, ptr->hcrossings[n].y, ptr->hcrossings[n].z);
-	
 	
 	fclose(fout);
 	
@@ -720,13 +719,41 @@ __global__ void sep_cuda_leapfrog(float4 *pos, float4 *vel, float4 *force, float
 		vel[i].y += force[i].y*imass*dt;
 		vel[i].z += force[i].z*imass*dt;
 		
-		pos[i].x += vel[i].x*dt; 
+		pos[i].x += vel[i].x*dt;
+		/*
+		if ( pos[i].x > lbox.x ){
+			pos[i].x += -lbox.x;
+			crossing[i].x += 1;
+			
+		} else if ( pos[i].x < 0.0 ){
+			pos[i].x += lbox.x;
+			crossing[i].x += -1;
+		}
+		*/
 		pos[i].x = sep_cuda_periodic(pos[i].x, lbox.x, &(crossing[i].x));
 		
 		pos[i].y += vel[i].y*dt;
+		/*
+		if ( pos[i].y > lbox.y ){
+			pos[i].y += -lbox.y;
+			crossing[i].y += 1;
+		} else if ( pos[i].y < 0.0 ){
+			pos[i].y += lbox.y;
+			crossing[i].y += -1;
+		}
+		*/
 		pos[i].y = sep_cuda_periodic(pos[i].y, lbox.y, &(crossing[i].y));
 		
 		pos[i].z += vel[i].z*dt; 
+		/*
+		if ( pos[i].z > lbox.z ){
+			pos[i].z += -lbox.z;
+			crossing[i].z += 1;
+		} else if ( pos[i].z < 0.0 ){
+			pos[i].z += lbox.z;
+			crossing[i].z += -1;
+		}
+		*/
 		pos[i].z = sep_cuda_periodic(pos[i].z, lbox.z, &(crossing[i].z));
 					
 		float dx = oldpos.x - pos[i].x; dx = sep_cuda_wrap(dx, lbox.x);

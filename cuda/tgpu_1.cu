@@ -45,8 +45,8 @@ int main(int argc, char **argv){
 	if ( atoi(argv[1])==1 ) ensemble[2]='t';
 	
 	printf("Ensemble is %s\n", ensemble);
-	
-	sepcupart *ptr = sep_cuda_load_xyz("start_singleAN8000.xyz");
+			
+	sepcupart *ptr = sep_cuda_load_xyz("start_singleAN1000.xyz");
 	sepcusys *sptr = sep_cuda_sys_setup(ptr);
 
 	sepcugh *ghptr = sep_cuda_sample_gh_init(sptr, 50, 20, 10*sptr->dt);
@@ -54,9 +54,20 @@ int main(int argc, char **argv){
 	float ljparam[3] = {1.0, 1.0, 2.5};
 	
 	float temp0 = 2.0; 	char filestr[100];
-	int n = 0; int nloops = 1000; bool update = true; int counter = 0;
+	int n = 0; int nloops = 1000000; bool update = true; int counter = 0;
 	while ( n<nloops ){
 
+		if ( sep_cuda_logrem(n, 2) ){
+		//if ( n%1000==0 ){
+			sprintf(filestr, "molsim-%05d.xyz", counter);
+			sep_cuda_save_xyz(ptr, filestr);
+			
+			sprintf(filestr, "crossings-%05d.dat", counter);
+			sep_cuda_save_crossings(ptr, filestr, n*sptr->dt);
+			
+			counter ++;
+		}
+		
 		sep_cuda_reset_iteration(ptr, sptr);
 
 		if ( update ) sep_cuda_update_neighblist(ptr, sptr, 2.5);
@@ -68,21 +79,10 @@ int main(int argc, char **argv){
 		sep_cuda_integrate_leapfrog(ptr, sptr);
 		
 		update = sep_cuda_check_neighblist(ptr, sptr->skin);
-	
 		if ( n%10 ==0 ){
 			sep_cuda_sample_gh(ghptr, ptr, sptr);
 		}
 				
-		//if ( sep_cuda_logrem(n, 2) ){
-		if ( n%5==0 ){
-			sprintf(filestr, "molsim-%05d.xyz", counter);
-			sep_cuda_save_xyz(ptr, filestr);
-			
-			sprintf(filestr, "crossings-%05d.dat", counter);
-			sep_cuda_save_crossings(ptr, filestr, n*sptr->dt);
-			
-			counter ++;
-		}
 		
 		if ( n%1000 == 0 ){
 			double normalpress, shearpress[3];
