@@ -508,7 +508,7 @@ __global__ void sep_cuda_lj(const char type1, const char type2, float3 params, i
 				float distSqr = dx*dx + dy*dy + dz*dz;
 
 				if ( distSqr < cfsqr ) {
-					float rri = sigma/distSqr; 
+					float rri = sigma*sigma/distSqr; 
 					float rri3 = rri*rri*rri;
 					float ft = 48.0*epsilon*rri3*(rri3 - 0.5)*rri;
 				
@@ -564,7 +564,7 @@ __global__ void sep_cuda_lj(float3 params, int *neighblist, float4 *pos, float4 
 			float distSqr = dx*dx + dy*dy + dz*dz;
 
 			if ( distSqr < cfsqr ) {
-				float rri = sigma/distSqr; 
+				float rri = sigma*sigma/distSqr; 
 				float rri3 = rri*rri*rri;
 				float ft =  48.0*epsilon*rri3*(rri3 - 0.5)*rri; //pow( sqrtf(1.0/distSqr), 11.0 ); //
 				
