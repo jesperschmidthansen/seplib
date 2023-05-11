@@ -44,21 +44,21 @@ int main(int argc, char **argv){
 	char ensemble[10]="nve";
 	if ( atoi(argv[1])==1 ) ensemble[2]='t';
 	
-	printf("Ensemble is %s\n", ensemble);
+	//printf("Ensemble is %s\n", ensemble);
 			
 	sepcupart *ptr = sep_cuda_load_xyz("start_singleAN1000.xyz");
 	sepcusys *sptr = sep_cuda_sys_setup(ptr);
 
 	sepcugh *ghptr = sep_cuda_sample_gh_init(sptr, 50, 20, 10*sptr->dt);
 	
-	float ljparam[3] = {1.0, 1.0, 2.5};
+	float ljparam[3] = {1.1, 1.0, 2.5};
 	
 	float temp0 = 2.0; 	char filestr[100];
-	int n = 0; int nloops = 1000000; bool update = true; int counter = 0;
+	int n = 0; int nloops = 10000; bool update = true; int counter = 0;
 	while ( n<nloops ){
 
-		if ( sep_cuda_logrem(n, 2) ){
-		//if ( n%1000==0 ){
+		//if ( sep_cuda_logrem(n, 2) ){
+		if ( n%200==0 ){
 			sprintf(filestr, "molsim-%05d.xyz", counter);
 			sep_cuda_save_xyz(ptr, filestr);
 			
@@ -84,7 +84,7 @@ int main(int argc, char **argv){
 		}
 				
 		
-		if ( n%1000 == 0 ){
+		if ( n%100 == 0 ){
 			double normalpress, shearpress[3];
 			sep_cuda_get_pressure(&normalpress, shearpress, ptr);
 			sep_cuda_get_energies(ptr, sptr, ensemble);

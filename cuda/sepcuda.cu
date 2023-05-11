@@ -629,7 +629,7 @@ __global__ void sep_cuda_lj_sf(const char type1, const char type2, float3 params
 				float distSqr = dx*dx + dy*dy + dz*dz;
 
 				if ( distSqr < cfsqr ) {
-					float rri = sigma/distSqr; 
+					float rri = sigma*sigma/distSqr; 
 					float rri3 = rri*rri*rri;
 					float ft = 48.0*epsilon*rri3*(rri3 - 0.5)*rri + force_shift;
 				
