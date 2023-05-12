@@ -1,4 +1,5 @@
-// Molecules
+// Molecules + electro-statics
+// Check against Wu et al. SPC/Fw water
 
 #include "sepcuda.h"
 #include "sepcudamol.h"
@@ -35,7 +36,7 @@ int main(void){
 		sep_cuda_thermostat_nh(aptr, sptr, 3.86, 0.1);
 		sep_cuda_integrate_leapfrog(aptr, sptr);
 		
-		if ( n%1000==0 ){
+		if ( n%100==0 ){
 			sprintf(filestr, "molsim-%05d.xyz", counter);
 			sep_cuda_save_xyz(aptr, filestr);
 			counter ++;

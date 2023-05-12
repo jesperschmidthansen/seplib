@@ -9,31 +9,6 @@
 #include "sepcudasampler.h"
 
 
-float sep_cuda_eval_momentum(sepcupart *aptr){
-	
-	sep_cuda_copy(aptr, 'v', 'h');
-	
-	float sumv = 0.0;
-	
-	for ( int n=0; n<aptr->npart; n++ ) 
-		sumv += aptr->hv[n].x;
-	
-	return sumv/aptr->npart;
-}
-
-
-bool sep_cuda_logrem(unsigned n, int base){
-	static unsigned counter = 0;
-	bool retval=false;
-	
-	if ( n%(int)pow(base, counter)==0 ){
-		retval = true;
-		counter++;
-	}
-	
-	return retval;
-}
-
 int main(int argc, char **argv){
 	
 	if ( argc != 2 ) {

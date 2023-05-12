@@ -19,6 +19,7 @@ typedef struct{
 	float4 *hx, *dx; //x,y,z,mass
 	float4 *hv, *dv; //vx,vy,vz,charge 
 	float4 *hf, *df; //fx,f,fz,type 
+	float4 *hx0, *dx0; //Virtual lattice sites, x0, y0, z0 
 	
 	unsigned maxneighb; 
 	int *neighblist; // neighb indicies + trailing -1s
@@ -65,13 +66,14 @@ void sep_cuda_mem_error(void);
 void sep_cuda_file_error(void);
 
 sepcupart* sep_cuda_allocate_memory(unsigned npart);
+sepcupart* sep_cuda_load_xyz(const char *xyzfile);
+sepcusys *sep_cuda_sys_setup(sepcupart *pptr);
+
+void sep_cuda_load_lattice_positions(sepcupart *pptr, const char *xyzfile);
 
 void sep_cuda_free_memory(sepcupart *ptr, sepcusys *sptr);
 
 void sep_cuda_copy(sepcupart *ptr, char opt_quantity, char opt_direction);
-
-sepcupart* sep_cuda_load_xyz(const char *xyzfile);
-sepcusys *sep_cuda_sys_setup(sepcupart *pptr);
 
 bool sep_cuda_check_neighblist(sepcupart *ptr, float maxdist);
 
@@ -86,6 +88,10 @@ void sep_cuda_set_hexclusion(sepcupart *pptr, int a, int b);
 void sep_cuda_compressbox(sepcupart *aptr, float rho0, float compressfactor[3]);
 
 void sep_cuda_get_pressure(double *npress, double *shearpress, sepcupart *aptr);
+float sep_cuda_eval_momentum(sepcupart *aptr);
+
+bool sep_cuda_logrem(unsigned n, int base);
+
 
 // Kernels
 __global__ void sep_cuda_reset(float4 *force, float *epot, float4 *press, float4 *sumpress, float3 *energies, unsigned npart);
@@ -119,6 +125,9 @@ __global__ void sep_cuda_update_nosehoover(float *alpha, float3 *denergies, floa
 										   float tau, float dt, unsigned int npart);
 __global__ void sep_cuda_nosehoover(float *alpha, float4 *pos, float4 *vel, float4 *force, unsigned npart);
 
+__global__ void sep_cuda_lattice_force(const char type, float springConstant, float4 *pos, float4 *pos0, float4 *force,
+									   float3 lbox, const unsigned npart);
+
 // Device functions 
 __device__ float sep_cuda_wrap(float x, float lbox);
 
@@ -134,6 +143,7 @@ void sep_cuda_force_lj(sepcupart *pptr, const char types[], float params[3]);
 void sep_cuda_force_lj(sepcupart *pptr, float params[3]);
 void sep_cuda_force_lj_sf(sepcupart *pptr, const char types[], float params[3]);
 void sep_cuda_force_sf(sepcupart *pptr, const float cf);
+void sep_cuda_force_lattice(sepcupart *pptr, const char type, float springConstant);
 void sep_cuda_thermostat_nh(sepcupart *pptr, sepcusys *sptr, float temp0, float tau);
 void sep_cuda_reset_iteration(sepcupart *pptr, sepcusys *sptr);
 void sep_cuda_update_neighblist(sepcupart *pptr, sepcusys *sptr, float maxcutoff);

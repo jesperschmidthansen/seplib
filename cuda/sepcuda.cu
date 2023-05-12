@@ -33,6 +33,9 @@ sepcupart* sep_cuda_allocate_memory(unsigned npartPadding){
 	if ( cudaMallocHost((void **)&(ptr->hf), nbytes) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
+	if ( cudaMallocHost((void **)&(ptr->hx0), nbytes) == cudaErrorMemoryAllocation )
+		sep_cuda_mem_error();
+	
 	if ( cudaMallocHost((void **)&(ptr->ht), npartPadding*sizeof(char)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
@@ -50,6 +53,9 @@ sepcupart* sep_cuda_allocate_memory(unsigned npartPadding){
 		sep_cuda_mem_error();
 	
 	if ( cudaMalloc((void **)&(ptr->df), nbytes) == cudaErrorMemoryAllocation )
+		sep_cuda_mem_error();
+	
+	if ( cudaMalloc((void **)&(ptr->dx0), nbytes) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
 	if ( cudaMalloc((void **)&(ptr->ddist), npartPadding*sizeof(float)) == cudaErrorMemoryAllocation )
@@ -81,11 +87,12 @@ void sep_cuda_free_memory(sepcupart *ptr, sepcusys *sptr){
 	
 	// Particle structure
 	cudaFreeHost(ptr->hx); 	cudaFreeHost(ptr->hv); 
-	cudaFreeHost(ptr->hf); 	cudaFreeHost(ptr->ht);
+	cudaFreeHost(ptr->hf); 	cudaFreeHost(ptr->hx0);
+	cudaFreeHost(ptr->ht);
 	
 	cudaFreeHost(ptr->hexclusion); cudaFreeHost(ptr->hcrossings);
 	
-	cudaFree(ptr->dx); cudaFree(ptr->dv); cudaFree(ptr->df);
+	cudaFree(ptr->dx); cudaFree(ptr->dv); cudaFree(ptr->df); cudaFree(ptr->dx0);
 	cudaFree(ptr->ddist); cudaFree(ptr->neighblist);
 	cudaFree(ptr->epot); cudaFree(ptr->press); cudaFree(ptr->sumpress); 
 	
@@ -119,6 +126,8 @@ void sep_cuda_copy(sepcupart *ptr, char opt_quantity, char opt_direction){
 				nbytes = ptr->npart_padding*sizeof(int3);
 				cudaMemcpy(ptr->dcrossings, ptr->hcrossings, nbytes, cudaMemcpyHostToDevice);
 			}
+			else if ( opt_quantity == 'l' )
+				cudaMemcpy(ptr->dx0, ptr->hx0, nbytes, cudaMemcpyHostToDevice);
 			else {
 				fprintf(stderr, "Invalid opt_quantity");
 				exit(EXIT_FAILURE);
@@ -136,6 +145,8 @@ void sep_cuda_copy(sepcupart *ptr, char opt_quantity, char opt_direction){
 				nbytes = ptr->npart_padding*sizeof(int3);
 				cudaMemcpy(ptr->hcrossings, ptr->dcrossings, nbytes, cudaMemcpyDeviceToHost);
 			}
+			else if ( opt_quantity == 'l' )
+				cudaMemcpy(ptr->hx, ptr->dx, nbytes, cudaMemcpyDeviceToHost);
 			else {
 				fprintf(stderr, "Invalid opt_quantity");
 				exit(EXIT_FAILURE);
@@ -238,6 +249,31 @@ sepcusys *sep_cuda_sys_setup(sepcupart *pptr){
 	
 	return sptr;
 }
+
+void sep_cuda_load_lattice_positions(sepcupart *ptr, const char *xyzfile){
+	char cdum; float vdum[3], mdum, qdum; int npart;
+
+	FILE *fin = fopen(xyzfile, "r");
+	if ( fin == NULL ) sep_cuda_file_error();
+ 
+	fscanf(fin, "%d\n", &npart);
+	fscanf(fin, "%f %f %f\n", &(vdum[0]), &(vdum[1]), &(vdum[2]));
+	
+	for ( unsigned n=0; n<npart; n++ ) {
+		fscanf(fin, "%c %f %f %f %f %f %f %f %f\n", 
+			   &cdum, &(ptr->hx0[n].x),&(ptr->hx0[n].y),&(ptr->hx0[n].z),
+			   &(vdum[0]), &(vdum[1]), &(vdum[2]), &mdum, &qdum);
+	}
+	
+	fclose(fin);
+
+	for ( unsigned n=npart; n<ptr->npart_padding; n++ ) 
+		ptr->hx0[n].x = ptr->hx0[n].y = ptr->hx0[n].z = 0.0f;
+	
+	sep_cuda_copy(ptr, 'l', 'd');
+}
+
+
 
 bool sep_cuda_check_neighblist(sepcupart *ptr, float maxdist){
 		
@@ -373,6 +409,31 @@ void sep_cuda_get_pressure(double *npress, double *shearpress, sepcupart *aptr){
 	
 }
 
+
+float sep_cuda_eval_momentum(sepcupart *aptr){
+	
+	sep_cuda_copy(aptr, 'v', 'h');
+	
+	float sumv = 0.0;
+	
+	for ( int n=0; n<aptr->npart; n++ ) 
+		sumv += aptr->hv[n].x;
+	
+	return sumv/aptr->npart;
+}
+
+
+bool sep_cuda_logrem(unsigned n, int base){
+	static unsigned counter = 0;
+	bool retval=false;
+	
+	if ( n%(int)pow(base, counter)==0 ){
+		retval = true;
+		counter++;
+	}
+	
+	return retval;
+}
 
 // Kernels
 
@@ -707,6 +768,29 @@ __global__ void sep_cuda_sf(float cf, int *neighblist, float4 *pos, float4 *vel,
 }
 
 
+__global__ void sep_cuda_lattice_force(const char type, float springConstant, float4 *pos, float4 *pos0, float4 *force,
+									   float3 lbox, const unsigned npart){
+
+	
+	unsigned pidx = blockDim.x * blockIdx.x + threadIdx.x;
+	int itype = __float2int_rd(force[pidx].w);
+		
+	if ( pidx < npart && itype == (int)type ){
+		
+		float dx = pos[pidx].x - pos0[pidx].x; dx = sep_cuda_wrap(dx, lbox.x);
+		float dy = pos[pidx].y - pos0[pidx].y; dy = sep_cuda_wrap(dy, lbox.y);
+		float dz = pos[pidx].z - pos0[pidx].z; dz = sep_cuda_wrap(dz, lbox.z);
+
+		force[pidx].x = - springConstant*dx;
+		force[pidx].y = - springConstant*dy;
+		force[pidx].z = - springConstant*dz;
+		
+	}
+	
+}
+	
+	
+	
 __global__ void sep_cuda_leapfrog(float4 *pos, float4 *vel, float4 *force, float *dist, int3 *crossing, float dt, float3 lbox, unsigned npart){
 
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -995,6 +1079,18 @@ void sep_cuda_force_sf(sepcupart *pptr, const float cf){
 
 }
 
+void sep_cuda_force_lattice(sepcupart *pptr, const char type, float springConstant){
+	const int nb = pptr->nblocks; 
+	const int nt = pptr->nthreads;
+	
+	sep_cuda_lattice_force<<<nb, nt>>>
+		(type, springConstant, pptr->dx, pptr->dx0, pptr->df, pptr->lbox, pptr->npart);
+		
+	cudaDeviceSynchronize();
+
+}
+
+
 void sep_cuda_thermostat_nh(sepcupart *pptr, sepcusys *sptr, float temp0, float tau){
 	const int nb = sptr->nblocks; 
 	const int nt = sptr->nthreads;
@@ -1068,4 +1164,5 @@ void sep_cuda_get_energies(sepcupart *ptr, sepcusys *sptr, const char ensemble[]
 	sptr->etot = sptr->ekin + sptr->epot;
 	sptr->temp = 2./3*sptr->ekin;
 }
+
 
