@@ -20,7 +20,7 @@ int main(void){
 	
 	int nloops = 10000; int counter = 0; char filestr[100];
 	for ( int n=0; n<nloops; n++ ){
-
+	
 		sep_cuda_reset_iteration(aptr, sptr);
 		
 		if ( n%10==0 ){
@@ -30,7 +30,7 @@ int main(void){
 		sep_cuda_force_lj(aptr, "OO", ljparam);
 		sep_cuda_force_sf(aptr, 2.5);
 		
-		sep_cuda_force_harmonic(aptr, mptr, 0, 68000, .316);
+		sep_cuda_force_harmonic(aptr, mptr, 0, 68000, 0.316);
 		sep_cuda_force_angle(aptr, mptr, 0, 490 , 1.97);
 		
 		sep_cuda_thermostat_nh(aptr, sptr, 3.86, 0.1);
@@ -39,6 +39,7 @@ int main(void){
 		if ( n%100==0 ){
 			sprintf(filestr, "molsim-%05d.xyz", counter);
 			sep_cuda_save_xyz(aptr, filestr);
+			
 			counter ++;
 		}
 		
@@ -47,7 +48,9 @@ int main(void){
 	sep_cuda_save_xyz(aptr, "test.xyz");
 	
 	sep_cuda_free_memory(aptr, sptr);
-	sep_cuda_free_mols(mptr);
 	
+	sep_cuda_free_bonds(mptr);
+	sep_cuda_free_angles(mptr);
+
 	return 0;
 }

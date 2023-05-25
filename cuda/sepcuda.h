@@ -13,6 +13,7 @@
 #define SEP_CUDA_MAXNEIGHBS 400
 
 #define SEP_CUDA_PI 3.14159265
+#define SEP_MAX_NUMB_EXCLUSION 10
 
 typedef struct{
 	
@@ -24,7 +25,7 @@ typedef struct{
 	unsigned maxneighb; 
 	int *neighblist; // neighb indicies + trailing -1s
 	int3 *hcrossings, *dcrossings; // Simulation box crossing
-	int4 *hexclusion, *dexclusion; // Exclusions (atom index) 
+	int *hexclusion, *dexclusion; // Exclusions (atom index) 
 
 	float *epot;  // Potential energy on particle - on device
 	float4 *press; //sumdiag,xy,xz,yz pressures - on device 
@@ -136,7 +137,7 @@ __device__ float sep_cuda_periodic(float x, float lbox, int *crossings);
 __device__ float sep_cuda_dot(float4 a);
 __device__ float sep_cuda_dot(float3 a, float3 b);
 
-__device__ bool sep_cuda_check_exclude(int x, int y, int z, int w, int idxj);
+__device__ bool sep_cuda_exclude_pair(int *exclusionlist, int numbexclude, int offset, int idxj);
 
 // Wrappers
 void sep_cuda_force_lj(sepcupart *pptr, const char types[], float params[3]);

@@ -6,16 +6,20 @@ COPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 --relocatable-device-code=tru
 
 OBJECTFILES = sepcuda.o sepcudamol.o sepcudasampler.o
 
-all: libsepcuda.a tgpu_0 tgpu_1 tgpu_2 tgpu_3 tcpu_0
+all: libsepcuda.a tgpu_0 tgpu_1 tgpu_2 tgpu_3 tgpu_4 tcpu_0
 	
 # CPU comparison test 
 tcpu_0: tcpu_0.c
 	gcc -W -Wextra -fopenmp -Ofast -o tcpu_0 tcpu_0.c -lsep -lm 
 
 
-# The famous SPC/Fw water model - checks for molecules and charges
+# More complicated propanol; multiple bonds, angles and dihedrals
+tgpu_4: sepcuda.o sepcudamol.o tgpu_4.cu
+	nvcc $(COPTIONS) -o tgpu_4 sepcuda.o sepcudamol.o tgpu_4.cu 
+
+# Slitpore - checks virtual lattice site
 tgpu_3: sepcuda.o tgpu_3.cu
-	nvcc $(COPTIONS) -o tgpu_3 sepcuda.o sepcudamol.o tgpu_3.cu 
+	nvcc $(COPTIONS) -o tgpu_3 sepcuda.o tgpu_3.cu 
 
 # The famous SPC/Fw water model - checks for molecules and charges
 tgpu_2: sepcuda.o sepcudamol.o tgpu_2.cu

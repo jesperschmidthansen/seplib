@@ -79,7 +79,8 @@ void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file){
 			mptr->hblist[index0+1] = b;
 			mptr->hblist[index0+2] = type;
 			
-			sep_cuda_set_hexclusion(pptr, a, b); sep_cuda_set_hexclusion(pptr, b, a);
+			sep_cuda_set_hexclusion(pptr, a, b); 
+			sep_cuda_set_hexclusion(pptr, b, a);
 				 
 			if ( moli > mptr->nmols ) mptr->nmols = moli;
 		}
@@ -160,10 +161,9 @@ void sep_cuda_read_angles(sepcupart *pptr, sepcumol *mptr, const char *file){
 			mptr->halist[index0+2] = c;
 			mptr->halist[index0+3] = type;
 			
-			sep_cuda_set_hexclusion(pptr, a, b); sep_cuda_set_hexclusion(pptr, a, c);
-			sep_cuda_set_hexclusion(pptr, b, a); sep_cuda_set_hexclusion(pptr, b, c);
-			sep_cuda_set_hexclusion(pptr, c, a); sep_cuda_set_hexclusion(pptr, c, b);
-			
+			sep_cuda_set_hexclusion(pptr, a, b); sep_cuda_set_hexclusion(pptr, a, c); 
+			sep_cuda_set_hexclusion(pptr, b, a); sep_cuda_set_hexclusion(pptr, b, c); 
+			sep_cuda_set_hexclusion(pptr, c, a); sep_cuda_set_hexclusion(pptr, c, b);			
 		}
 	} while ( !feof(fptr) ); 
 	
@@ -178,8 +178,6 @@ void sep_cuda_read_angles(sepcupart *pptr, sepcumol *mptr, const char *file){
 	if ( mptr->nangles > 0 ){
 		fprintf(stdout, "Copying to device\n");
 	
-		sep_cuda_copy_exclusion(pptr);
-	
 		size_t nbytes =  4*(mptr->nangles)*sizeof(unsigned int);
 		if ( cudaMalloc((void **)&(mptr->dalist),nbytes) == cudaErrorMemoryAllocation )
 			sep_cuda_mem_error();
@@ -187,6 +185,94 @@ void sep_cuda_read_angles(sepcupart *pptr, sepcumol *mptr, const char *file){
 		cudaMemcpy(mptr->dalist, mptr->halist, nbytes, cudaMemcpyHostToDevice);
 		
 		sep_cuda_copy_exclusion(pptr);
+	}
+	
+}
+
+
+void sep_cuda_read_dihedrals(sepcupart *pptr, sepcumol *mptr, const char *file){
+	const char section[] = {'[', ' ', 'd', 'i', 'h', 'e', 'd', 'r', 'a', 'l', 's', ' ', ']','\n', '\0'};
+	char line[256];
+	fpos_t pos_file;
+	unsigned moli, a, b, c, d, type;
+
+	if ( mptr->nmols == 0 ) {
+		fprintf(stderr, "Bond section must be read before dihedral section");
+		exit(EXIT_FAILURE);
+	}
+	
+	mptr->ndihedrals = 0; 
+
+	// We reset exclusion list - all atoms forming a dihedral is now excluded in the pair potential.
+	sep_cuda_reset_exclusion(pptr);
+	
+	FILE *fptr = fopen(file, "r");
+	if ( fptr == NULL ) sep_cuda_file_error();
+	
+	// We *must* init the pointer since it will be free no matter if the read is sucessful or not
+	mptr->hdlist = (unsigned *)malloc(0);
+	if ( mptr->hdlist == NULL ) sep_cuda_mem_error();
+ 
+	// Find the 'angles' section 
+	fptr = sep_cuda_set_file_pointer(fptr, section);
+	if ( fptr==NULL ) sep_cuda_file_error();
+	
+	do {
+
+		fgetpos(fptr, &pos_file); 
+		if ( fgets(line, 256, fptr) == NULL ) sep_cuda_file_error();
+		
+		if ( line[0] == '[' ) {
+			break;
+		}
+		else {
+      
+			fsetpos(fptr, &pos_file); 
+      
+			int sc = fscanf(fptr, "%u%u%u%u%u%u\n", &moli, &a, &b, &c, &d, &type);
+			if ( sc != 6 ) sep_cuda_file_error();
+     
+			(mptr->ndihedrals) ++;
+    
+			mptr->hdlist = (unsigned *)realloc((mptr->hdlist), sizeof(unsigned)*5*mptr->ndihedrals);
+			if ( mptr->hdlist == NULL ) sep_cuda_mem_error();
+      
+			int index0 = (mptr->ndihedrals-1)*5;
+      
+			mptr->hdlist[index0] = a;
+			mptr->hdlist[index0+1] = b;
+			mptr->hdlist[index0+2] = c;
+			mptr->hdlist[index0+3] = d;
+			mptr->hdlist[index0+4] = type;
+			
+			sep_cuda_set_hexclusion(pptr, a, b); sep_cuda_set_hexclusion(pptr, a, c); sep_cuda_set_hexclusion(pptr, a, d);  
+			sep_cuda_set_hexclusion(pptr, b, a); sep_cuda_set_hexclusion(pptr, b, c); sep_cuda_set_hexclusion(pptr, b, d); 
+			sep_cuda_set_hexclusion(pptr, c, a); sep_cuda_set_hexclusion(pptr, c, b); sep_cuda_set_hexclusion(pptr, c, d);
+			sep_cuda_set_hexclusion(pptr, d, a); sep_cuda_set_hexclusion(pptr, d, b); sep_cuda_set_hexclusion(pptr, d, c);
+			
+		}
+	} while ( !feof(fptr) ); 
+	
+	fclose(fptr);
+
+	// Since number of mols is one bigger than the index
+	mptr->ndihedralblocks = mptr->ndihedrals/SEP_CUDA_NTHREADS + 1 ;
+	
+	fprintf(stdout, "Succesfully read 'dihedral' section in file %s -> ", file);
+    fprintf(stdout, "Found %d angles(s)\n", mptr->ndihedrals);
+	
+	if ( mptr->ndihedrals > 0 ){
+		fprintf(stdout, "Copying to device\n");
+	
+		size_t nbytes =  5*(mptr->nangles)*sizeof(unsigned int);
+		if ( cudaMalloc((void **)&(mptr->ddlist),nbytes) == cudaErrorMemoryAllocation )
+			sep_cuda_mem_error();
+	
+		cudaMemcpy(mptr->ddlist, mptr->hdlist, nbytes, cudaMemcpyHostToDevice);
+		
+		sep_cuda_copy_exclusion(pptr);
+		
+		cudaDeviceSynchronize();
 	}
 	
 }
@@ -205,13 +291,21 @@ void sep_cuda_free_angles(sepcumol *mptr){
 	cudaFree(mptr->dalist);
 }
 
+void sep_cuda_free_dihedrals(sepcumol *mptr){
+
+	free(mptr->hdlist);
+	cudaFree(mptr->ddlist);
+}
+
+
+/*
 void sep_cuda_free_mols(sepcumol *mptr){
 	
 	sep_cuda_free_bonds(mptr);
 	sep_cuda_free_angles(mptr);
-	
+	sep_cuda_free_dihedrals(mptr);
 }
-
+*/
 
 __global__ void sep_cuda_bond_harmonic(unsigned *blist, unsigned nbonds, float3 bondspec, 
 								  float4 *pos, float4 *force, float3 lbox){
@@ -313,6 +407,94 @@ __global__ void sep_cuda_angle(unsigned *alist, unsigned nangles, float3 anglesp
 }
 
 
+
+__global__ void sep_cuda_ryckertbellemann(unsigned *dlist, unsigned ndihedrals, int type, float *params, 
+											float4 *pos, float4 *force, float3 lbox){
+	
+	unsigned i = blockDim.x*blockIdx.x + threadIdx.x;
+	
+	if ( i<ndihedrals ){
+
+		unsigned offset = i*5;
+		
+		if ( dlist[offset+4] == type ) {
+			
+			unsigned a = dlist[offset]; 
+			unsigned b = dlist[offset+1];
+			unsigned c = dlist[offset+2];
+			unsigned d = dlist[offset+3];
+
+			float3 dr1, dr2, dr3;
+
+			dr1.x = pos[b].x - pos[a].x; dr1.x = sep_cuda_wrap(dr1.x, lbox.x);
+			dr1.y = pos[b].y - pos[a].y; dr1.y = sep_cuda_wrap(dr1.y, lbox.y);
+			dr1.z = pos[b].z - pos[a].z; dr1.z = sep_cuda_wrap(dr1.z, lbox.z);
+
+			dr2.x = pos[c].x - pos[b].x; dr2.x = sep_cuda_wrap(dr2.x, lbox.x);
+			dr2.y = pos[c].y - pos[b].y; dr2.y = sep_cuda_wrap(dr2.y, lbox.y);
+			dr2.z = pos[c].z - pos[b].z; dr2.z = sep_cuda_wrap(dr2.z, lbox.z);
+	
+			
+			dr3.x = pos[d].x - pos[c].x; dr3.x = sep_cuda_wrap(dr3.x, lbox.x);
+			dr3.y = pos[d].y - pos[c].y; dr3.y = sep_cuda_wrap(dr3.y, lbox.y);
+			dr3.z = pos[d].z - pos[c].z; dr3.z = sep_cuda_wrap(dr3.z, lbox.z);
+	
+			float c11 = sep_cuda_dot(dr1, dr1);
+			float c12 = sep_cuda_dot(dr1, dr2);
+			float c13 = sep_cuda_dot(dr1, dr3);
+			float c22 = sep_cuda_dot(dr2, dr2);
+			float c23 = sep_cuda_dot(dr2, dr3);
+			float c33 = sep_cuda_dot(dr3, dr3);
+				
+			float cA = c13*c22 - c12*c23;
+			float cB1 = c11*c22 - c12*c12;
+			float cB2 = c22*c33 - c23*c23;
+			float cD = sqrt(cB1*cB2); 
+			float cc = cA/cD;
+                  
+			float f = -(params[1]+(2.*params[2]+(3.*params[3]+(4.*params[4]+5.*params[5]*cc)*cc)*cc)*cc);
+			float t1 = cA; 
+			float t2 = c11*c23 - c12*c13;
+			float t3 = -cB1; 
+			float t4 = cB2;
+			float t5 = c13*c23 - c12*c33; 
+			float t6 = -cA;
+			float cR1 = c12/c22; 
+			float cR2 = c23/c22;
+		
+			
+			float3 f1;
+			f1.x = f*c22*(t1*dr1.x + t2*dr2.x + t3*dr3.x)/(cD*cB1);
+			f1.y = f*c22*(t1*dr1.y + t2*dr2.y + t3*dr3.y)/(cD*cB1);
+			f1.z = f*c22*(t1*dr1.z + t2*dr2.z + t3*dr3.z)/(cD*cB1);
+			
+			float3 f2;
+			f2.x = f*c22*(t4*dr1.x + t5*dr2.x + t6*dr3.x)/(cD*cB2);
+			f2.y = f*c22*(t4*dr1.y + t5*dr2.y + t6*dr3.y)/(cD*cB2);
+			f2.x = f*c22*(t4*dr1.z + t5*dr2.z + t6*dr3.z)/(cD*cB2);
+							
+			//ACHTUNG slow perhaps
+			atomicAdd(&(force[a].x), f1.x); atomicAdd(&(force[a].y), f1.y);atomicAdd(&(force[a].z), f1.z);
+			
+			atomicAdd(&(force[b].x), (-(1.0 + cR1)*f1.x + cR2*f2.x)); 
+			atomicAdd(&(force[b].y), (-(1.0 + cR1)*f1.y + cR2*f2.y));
+			atomicAdd(&(force[b].z), (-(1.0 + cR1)*f1.z + cR2*f2.z));
+			
+			atomicAdd(&(force[c].x), (cR1*f1.x - (1.0 + cR2)*f2.x));
+			atomicAdd(&(force[c].y), (cR1*f1.y - (1.0 + cR2)*f2.y));
+			atomicAdd(&(force[c].z), (cR1*f1.z - (1.0 + cR2)*f2.z));
+			
+			atomicAdd(&(force[d].x), f2.x); atomicAdd(&(force[d].y), f2.y);atomicAdd(&(force[d].z), f2.z);
+			
+      }
+	}
+		
+}
+
+			
+			
+			
+
 void sep_cuda_force_harmonic(sepcupart *pptr, sepcumol *mptr, int type, float ks, float lbond){
 	int nb = mptr->nbondblocks; 
 	int nt = pptr->nthreads;
@@ -338,4 +520,15 @@ void sep_cuda_force_angle(sepcupart *pptr, sepcumol *mptr, int type, float kthet
 		(mptr->dalist, mptr->nangles, angleinfo, pptr->dx, pptr->df, pptr->lbox);
 		
 	cudaDeviceSynchronize();
+}
+
+void sep_cuda_force_dihedral(sepcupart *pptr, sepcumol *mptr, int type, float params[6]){
+	int nb = mptr->ndihedralblocks; 
+	int nt = pptr->nthreads;
+	
+	sep_cuda_ryckertbellemann<<<nb, nt>>>
+	(mptr->ddlist, mptr->ndihedrals, type, params, pptr->dx, pptr->df, pptr->lbox);
+
+	cudaDeviceSynchronize();
+
 }

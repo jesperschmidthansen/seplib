@@ -23,7 +23,9 @@ sepcupart* sep_cuda_allocate_memory(unsigned npartPadding){
 		sep_cuda_mem_error();
 	
 	size_t nbytes = npartPadding*sizeof(float4);
-	
+	size_t nbytes_excludelist = (1+SEP_MAX_NUMB_EXCLUSION)*npartPadding*sizeof(int);
+
+	// Host
 	if ( cudaMallocHost((void **)&(ptr->hx), nbytes) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
@@ -39,13 +41,14 @@ sepcupart* sep_cuda_allocate_memory(unsigned npartPadding){
 	if ( cudaMallocHost((void **)&(ptr->ht), npartPadding*sizeof(char)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
-	if ( cudaMallocHost((void **)&(ptr->hexclusion), npartPadding*sizeof(int4)) == cudaErrorMemoryAllocation )
+	if ( cudaMallocHost((void **)&(ptr->hexclusion), nbytes_excludelist) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
 	if ( cudaMallocHost((void **)&(ptr->hcrossings), npartPadding*sizeof(int3)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
 	
+	// Device
 	if ( cudaMalloc((void **)&(ptr->dx), nbytes) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
@@ -70,7 +73,7 @@ sepcupart* sep_cuda_allocate_memory(unsigned npartPadding){
 	if ( cudaMalloc((void **)&(ptr->sumpress), sizeof(float4)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
-	if ( cudaMalloc((void **)&(ptr->dexclusion), npartPadding*sizeof(int4)) == cudaErrorMemoryAllocation )
+	if ( cudaMalloc((void **)&(ptr->dexclusion), nbytes_excludelist) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 
 	ptr->maxneighb = SEP_CUDA_MAXNEIGHBS;
@@ -97,6 +100,8 @@ void sep_cuda_free_memory(sepcupart *ptr, sepcusys *sptr){
 	cudaFree(ptr->epot); cudaFree(ptr->press); cudaFree(ptr->sumpress); 
 	
 	cudaFree(ptr->dexclusion); cudaFree(ptr->dcrossings);
+	
+	
 	cudaFreeHost(ptr);
 	
 	// System structure
@@ -114,19 +119,19 @@ void sep_cuda_copy(sepcupart *ptr, char opt_quantity, char opt_direction){
 	switch (opt_direction){
 		
 		case 'd':
-			if ( opt_quantity == 'x' )
+			if ( opt_quantity == 'x' )  // Position
 				cudaMemcpy(ptr->dx, ptr->hx, nbytes, cudaMemcpyHostToDevice); 
-			else if ( opt_quantity == 'v' )
+			else if ( opt_quantity == 'v' ) // Velocity
 				cudaMemcpy(ptr->dv, ptr->hv, nbytes, cudaMemcpyHostToDevice);
-			else if ( opt_quantity == 'f' ){
+			else if ( opt_quantity == 'f' ){ // Force + type
 				for ( int n=0; n<ptr->npart_padding; n++ ) ptr->hf[n].w = (float)(ptr->ht[n]);
 				cudaMemcpy(ptr->df, ptr->hf, nbytes, cudaMemcpyHostToDevice);	
 			} 
-			else if ( opt_quantity == 'c' ){
+			else if ( opt_quantity == 'c' ){  // Particle crossings array
 				nbytes = ptr->npart_padding*sizeof(int3);
 				cudaMemcpy(ptr->dcrossings, ptr->hcrossings, nbytes, cudaMemcpyHostToDevice);
 			}
-			else if ( opt_quantity == 'l' )
+			else if ( opt_quantity == 'l' )  // Lattice sites
 				cudaMemcpy(ptr->dx0, ptr->hx0, nbytes, cudaMemcpyHostToDevice);
 			else {
 				fprintf(stderr, "Invalid opt_quantity");
@@ -146,7 +151,7 @@ void sep_cuda_copy(sepcupart *ptr, char opt_quantity, char opt_direction){
 				cudaMemcpy(ptr->hcrossings, ptr->dcrossings, nbytes, cudaMemcpyDeviceToHost);
 			}
 			else if ( opt_quantity == 'l' )
-				cudaMemcpy(ptr->hx, ptr->dx, nbytes, cudaMemcpyDeviceToHost);
+				cudaMemcpy(ptr->hx0, ptr->dx0, nbytes, cudaMemcpyDeviceToHost);
 			else {
 				fprintf(stderr, "Invalid opt_quantity");
 				exit(EXIT_FAILURE);
@@ -158,7 +163,7 @@ void sep_cuda_copy(sepcupart *ptr, char opt_quantity, char opt_direction){
 			exit(EXIT_FAILURE);
 	}
 	
-	// Aparently, the device not synchronized copying to hist ...
+	// The device not synchronized copying to host
 	cudaDeviceSynchronize();
 	
 }
@@ -339,41 +344,34 @@ void sep_cuda_save_crossings(sepcupart *ptr, const char *filestr, float time){
 void sep_cuda_reset_exclusion(sepcupart *pptr){
 	
 	for ( int n=0; n<pptr->npart_padding; n++ ){
-		pptr->hexclusion[n].x = 0;
-		pptr->hexclusion[n].y = -1;
-		pptr->hexclusion[n].z = -1;
-		pptr->hexclusion[n].w = -1;
+		int offset = n*(SEP_MAX_NUMB_EXCLUSION+1);
+
+		pptr->hexclusion[offset] = 0;
+		for ( int m=1; m<=SEP_MAX_NUMB_EXCLUSION; m++ )
+			pptr->hexclusion[offset+m] = -1;
+		
 	}
 	
 	sep_cuda_copy_exclusion(pptr);	
 }
 
 void sep_cuda_copy_exclusion(sepcupart *pptr){
+
+	size_t nbytes_excludelist = (SEP_MAX_NUMB_EXCLUSION+1)*pptr->npart_padding*sizeof(int);
 		
-	size_t nbytes = pptr->npart_padding*sizeof(int4);
-	cudaError_t __err = cudaMemcpy(pptr->dexclusion, pptr->hexclusion, nbytes, cudaMemcpyHostToDevice);
+	cudaError_t __err = cudaMemcpy(pptr->dexclusion, pptr->hexclusion, nbytes_excludelist, cudaMemcpyHostToDevice);
 	if ( __err != cudaSuccess ) fprintf(stderr, "Error copying\n");	
-	
+
 }
 
 void sep_cuda_set_hexclusion(sepcupart *pptr, int a, int b){
 	
-	switch (pptr->hexclusion[a].x){
-		case 0: 
-			pptr->hexclusion[a].y = b;
-			break;
-		case 1:
-			pptr->hexclusion[a].z = b;
-			break;
-		case 2: 
-			pptr->hexclusion[a].w = b;
-			break;
-		default:
-			fprintf(stderr, "Error in exclusion list");
-			break;
-	}
+	int offset_a = a*(SEP_MAX_NUMB_EXCLUSION+1); 
+	int offset_lst = pptr->hexclusion[offset_a];
 	
-	pptr->hexclusion[a].x = pptr->hexclusion[a].x + 1;
+	pptr->hexclusion[offset_a + offset_lst + 1] = b;
+	pptr->hexclusion[offset_a] = pptr->hexclusion[offset_a] + 1;
+	
 }
 
 void sep_cuda_compressbox(sepcupart *aptr, float rho0, float compressfactor[3]){
@@ -457,7 +455,7 @@ __global__ void sep_cuda_reset(float4 *force, float *epot, float4 *press, float4
 }
 
 
-__global__ void sep_cuda_build_neighblist(float *dalpha, int *neighlist, int4 *exclusion, float4 *p, float *dist, float cf, 
+__global__ void sep_cuda_build_neighblist(float *dalpha, int *neighlist, int *exclusion, float4 *p, float *dist, float cf, 
 										  float3 lbox, unsigned nneighmax, unsigned npart) {
 
 	int pidx = blockDim.x * blockIdx.x + threadIdx.x;
@@ -465,17 +463,16 @@ __global__ void sep_cuda_build_neighblist(float *dalpha, int *neighlist, int4 *e
 	if ( pidx < npart ){
 		float cfsqr = cf*cf; 
 		int arrayOffset = pidx*nneighmax;
-
+		
+		int excludeOffset = pidx*(SEP_MAX_NUMB_EXCLUSION+1);
+		int numbexclude = exclusion[excludeOffset];
+		
 		float mpx = __ldg(&p[pidx].x); float mpy = __ldg(&p[pidx].y); float mpz = __ldg(&p[pidx].z);
 
 		#pragma unroll	
 		for ( int n=0; n<nneighmax; n++ ) neighlist[arrayOffset + n] = -1; //<- this should be optimized 
 		
 		dist[pidx] = 0.0f;
-		
-		int exclx = __ldg(&exclusion[pidx].x); int excly = __ldg(&exclusion[pidx].y); 
-		int exclz = __ldg(&exclusion[pidx].z); int exclw = __ldg(&exclusion[pidx].w); 
-		
 		
 		int shift = 0;
 		for ( int tile = 0; tile < gridDim.x; tile++ ) {
@@ -491,8 +488,8 @@ __global__ void sep_cuda_build_neighblist(float *dalpha, int *neighlist, int4 *e
 				
 				if ( idxj >= npart )  break;
 
-				if ( sep_cuda_check_exclude(exclx, excly, exclz, exclw, idxj) ) continue;
-				
+				if ( sep_cuda_exclude_pair(exclusion, numbexclude, excludeOffset, idxj) )
+					continue;
 				/*
 				float dx = mpx - spos[j].x; dx = sep_cuda_wrap(dx, lbox.x);
 				float dy = mpy - spos[j].y; dy = sep_cuda_wrap(dy, lbox.y);
@@ -1013,14 +1010,16 @@ __device__ float sep_cuda_periodic(float x, float lbox, int *crossing){
 	return x;
 }
 
-__device__ bool sep_cuda_check_exclude(int x, int y, int z, int w, int idxj){
+__device__ bool sep_cuda_exclude_pair(int *exclusionlist, int numbexclude, int offset, int idxj){
 	
 	int retval = false;
-		
-	if ( x > 0 ){
-		if ( y == idxj ||  z == idxj ||  w == idxj ) return true;
-	}
 	
+	for ( int n=1; n<=numbexclude; n++ ){
+		if ( exclusionlist[n+offset] == idxj ) {
+			retval = true;  break;
+		}
+	}
+
 	return retval;
 }
 

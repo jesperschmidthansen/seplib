@@ -26,7 +26,7 @@ int main(int argc, char **argv){
 
 	sepcugh *ghptr = sep_cuda_sample_gh_init(sptr, 50, 20, 10*sptr->dt);
 	
-	float ljparam[3] = {1.1, 1.0, 2.5};
+	float ljparam[3] = {1.0, 1.0, 2.5};
 	
 	float temp0 = 2.0; 	char filestr[100];
 	int n = 0; int nloops = 10000; bool update = true; int counter = 0;
