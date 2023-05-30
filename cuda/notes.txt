@@ -34,8 +34,8 @@ Notes:
 
 * GH sampling on cpu order of ~10 percent penalty 
 
-* Neighbour-list update check is very slow at the moment (~30 percent penalty)- please update
-  IT is the sep_cuda_sumdistance which is slow 
+* Neighbour-list update check is very slow at the moment (~30 percent penalty)- please update.
+  It is the sep_cuda_sumdistance which is slow 
 
 * Potential energy not calculated for intramolecular interactions (please fix)
 
@@ -45,3 +45,4 @@ Notes:
 
 * Copying positions to sheared memory doen't help (in fact tests using GERMS nbody it is slower)
 
+* Need a function that thermostat/scale velocities for types
