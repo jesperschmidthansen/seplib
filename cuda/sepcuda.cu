@@ -1164,4 +1164,3 @@ void sep_cuda_get_energies(sepcupart *ptr, sepcusys *sptr, const char ensemble[]
 	sptr->temp = 2./3*sptr->ekin;
 }
 
-

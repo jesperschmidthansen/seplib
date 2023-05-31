@@ -408,13 +408,14 @@ __global__ void sep_cuda_angle(unsigned *alist, unsigned nangles, float3 anglesp
 
 
 
-__global__ void sep_cuda_ryckertbellemann(unsigned *dlist, unsigned ndihedrals, int type, float *params, 
+__global__ void sep_cuda_ryckertbellemann(unsigned *dlist, unsigned ndihedrals, int type, 
+										  float params1, float params2, float params3, float params4, float params5,
 											float4 *pos, float4 *force, float3 lbox){
 	
 	unsigned i = blockDim.x*blockIdx.x + threadIdx.x;
 	
 	if ( i<ndihedrals ){
-
+		
 		unsigned offset = i*5;
 		
 		if ( dlist[offset+4] == type ) {
@@ -423,7 +424,7 @@ __global__ void sep_cuda_ryckertbellemann(unsigned *dlist, unsigned ndihedrals, 
 			unsigned b = dlist[offset+1];
 			unsigned c = dlist[offset+2];
 			unsigned d = dlist[offset+3];
-
+			
 			float3 dr1, dr2, dr3;
 
 			dr1.x = pos[b].x - pos[a].x; dr1.x = sep_cuda_wrap(dr1.x, lbox.x);
@@ -434,25 +435,25 @@ __global__ void sep_cuda_ryckertbellemann(unsigned *dlist, unsigned ndihedrals, 
 			dr2.y = pos[c].y - pos[b].y; dr2.y = sep_cuda_wrap(dr2.y, lbox.y);
 			dr2.z = pos[c].z - pos[b].z; dr2.z = sep_cuda_wrap(dr2.z, lbox.z);
 	
-			
 			dr3.x = pos[d].x - pos[c].x; dr3.x = sep_cuda_wrap(dr3.x, lbox.x);
 			dr3.y = pos[d].y - pos[c].y; dr3.y = sep_cuda_wrap(dr3.y, lbox.y);
 			dr3.z = pos[d].z - pos[c].z; dr3.z = sep_cuda_wrap(dr3.z, lbox.z);
 	
-			float c11 = sep_cuda_dot(dr1, dr1);
+			float c11 = sep_cuda_dot(dr1, dr1); 
 			float c12 = sep_cuda_dot(dr1, dr2);
 			float c13 = sep_cuda_dot(dr1, dr3);
 			float c22 = sep_cuda_dot(dr2, dr2);
 			float c23 = sep_cuda_dot(dr2, dr3);
 			float c33 = sep_cuda_dot(dr3, dr3);
-				
+			 
 			float cA = c13*c22 - c12*c23;
 			float cB1 = c11*c22 - c12*c12;
 			float cB2 = c22*c33 - c23*c23;
 			float cD = sqrt(cB1*cB2); 
 			float cc = cA/cD;
-                  
-			float f = -(params[1]+(2.*params[2]+(3.*params[3]+(4.*params[4]+5.*params[5]*cc)*cc)*cc)*cc);
+
+			float f = -(params1+(2.*params2+(3.*params3+(4.*params4+5.*params5*cc)*cc)*cc)*cc);
+			
 			float t1 = cA; 
 			float t2 = c11*c23 - c12*c13;
 			float t3 = -cB1; 
@@ -461,20 +462,25 @@ __global__ void sep_cuda_ryckertbellemann(unsigned *dlist, unsigned ndihedrals, 
 			float t6 = -cA;
 			float cR1 = c12/c22; 
 			float cR2 = c23/c22;
-		
 			
 			float3 f1;
 			f1.x = f*c22*(t1*dr1.x + t2*dr2.x + t3*dr3.x)/(cD*cB1);
 			f1.y = f*c22*(t1*dr1.y + t2*dr2.y + t3*dr3.y)/(cD*cB1);
 			f1.z = f*c22*(t1*dr1.z + t2*dr2.z + t3*dr3.z)/(cD*cB1);
 			
+			//printf("%f %f %f\n", f1.x, f1.y, f1.z);
+			
 			float3 f2;
 			f2.x = f*c22*(t4*dr1.x + t5*dr2.x + t6*dr3.x)/(cD*cB2);
 			f2.y = f*c22*(t4*dr1.y + t5*dr2.y + t6*dr3.y)/(cD*cB2);
 			f2.x = f*c22*(t4*dr1.z + t5*dr2.z + t6*dr3.z)/(cD*cB2);
-							
+			
+			printf("%f %f %f\n", f2.x, f2.y, f2.z);
+			
 			//ACHTUNG slow perhaps
-			atomicAdd(&(force[a].x), f1.x); atomicAdd(&(force[a].y), f1.y);atomicAdd(&(force[a].z), f1.z);
+			atomicAdd(&(force[a].x), f1.x); 
+			atomicAdd(&(force[a].y), f1.y);
+			atomicAdd(&(force[a].z), f1.z);
 			
 			atomicAdd(&(force[b].x), (-(1.0 + cR1)*f1.x + cR2*f2.x)); 
 			atomicAdd(&(force[b].y), (-(1.0 + cR1)*f1.y + cR2*f2.y));
@@ -484,7 +490,9 @@ __global__ void sep_cuda_ryckertbellemann(unsigned *dlist, unsigned ndihedrals, 
 			atomicAdd(&(force[c].y), (cR1*f1.y - (1.0 + cR2)*f2.y));
 			atomicAdd(&(force[c].z), (cR1*f1.z - (1.0 + cR2)*f2.z));
 			
-			atomicAdd(&(force[d].x), f2.x); atomicAdd(&(force[d].y), f2.y);atomicAdd(&(force[d].z), f2.z);
+			atomicAdd(&(force[d].x), f2.x); 
+			atomicAdd(&(force[d].y), f2.y);
+			atomicAdd(&(force[d].z), f2.z);
 			
       }
 	}
@@ -526,8 +534,10 @@ void sep_cuda_force_dihedral(sepcupart *pptr, sepcumol *mptr, int type, float pa
 	int nb = mptr->ndihedralblocks; 
 	int nt = pptr->nthreads;
 	
+	
 	sep_cuda_ryckertbellemann<<<nb, nt>>>
-	(mptr->ddlist, mptr->ndihedrals, type, params, pptr->dx, pptr->df, pptr->lbox);
+		(mptr->ddlist, mptr->ndihedrals, type, 
+		 params[1], params[2], params[3], params[4], params[5], pptr->dx, pptr->df, pptr->lbox);
 
 	cudaDeviceSynchronize();
 

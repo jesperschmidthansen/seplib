@@ -47,6 +47,6 @@ __global__ void sep_cuda_ryckertbellemann(unsigned *dlist, unsigned ndihedrals, 
 // Wrappers
 void sep_cuda_force_harmonic(sepcupart *pptr, sepcumol *mptr, int type, float ks, float lbond);
 void sep_cuda_force_angle(sepcupart *pptr, sepcumol *mptr, int type, float ktheta, float angle0);
-void sep_cuda_force_dihedral(sepcupart *pptr, sepcumol *mptr, int type, float params[6]);
+void sep_cuda_force_dihedral(sepcupart *pptr, sepcumol *mptr, int type, float *params);
 
 #endif

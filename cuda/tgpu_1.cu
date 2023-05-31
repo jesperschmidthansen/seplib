@@ -19,7 +19,7 @@ int main(int argc, char **argv){
 	char ensemble[10]="nve";
 	if ( atoi(argv[1])==1 ) ensemble[2]='t';
 	
-	//printf("Ensemble is %s\n", ensemble);
+	printf("Ensemble is %s\n", ensemble);
 			
 	sepcupart *ptr = sep_cuda_load_xyz("start_singleAN1000.xyz");
 	sepcusys *sptr = sep_cuda_sys_setup(ptr);
@@ -54,6 +54,7 @@ int main(int argc, char **argv){
 		sep_cuda_integrate_leapfrog(ptr, sptr);
 		
 		update = sep_cuda_check_neighblist(ptr, sptr->skin);
+		
 		if ( n%10 ==0 ){
 			sep_cuda_sample_gh(ghptr, ptr, sptr);
 		}
