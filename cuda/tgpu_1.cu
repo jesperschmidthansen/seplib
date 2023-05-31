@@ -24,7 +24,7 @@ int main(int argc, char **argv){
 	sepcupart *ptr = sep_cuda_load_xyz("start_singleAN1000.xyz");
 	sepcusys *sptr = sep_cuda_sys_setup(ptr);
 
-	sepcugh *ghptr = sep_cuda_sample_gh_init(sptr, 50, 20, 10*sptr->dt);
+	sepcugh *ghptr = sep_cuda_sample_gh_init(sptr, 50, 30, 10*sptr->dt);
 	
 	float ljparam[3] = {1.0, 1.0, 2.5};
 	

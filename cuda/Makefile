@@ -15,7 +15,7 @@ tcpu_0: tcpu_0.c
 
 # More complicated propanol; multiple bonds, angles and dihedrals
 tgpu_4: sepcuda.o sepcudamol.o tgpu_4.cu
-	nvcc $(COPTIONS) -o tgpu_4 sepcuda.o sepcudamol.o tgpu_4.cu 
+	nvcc $(COPTIONS) -o tgpu_4 sepcuda.o sepcudamol.o sepcudasampler.o tgpu_4.cu 
 
 # Slitpore - checks virtual lattice site
 tgpu_3: sepcuda.o tgpu_3.cu

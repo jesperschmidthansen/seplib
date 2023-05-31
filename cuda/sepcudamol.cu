@@ -468,14 +468,10 @@ __global__ void sep_cuda_ryckertbellemann(unsigned *dlist, unsigned ndihedrals, 
 			f1.y = f*c22*(t1*dr1.y + t2*dr2.y + t3*dr3.y)/(cD*cB1);
 			f1.z = f*c22*(t1*dr1.z + t2*dr2.z + t3*dr3.z)/(cD*cB1);
 			
-			//printf("%f %f %f\n", f1.x, f1.y, f1.z);
-			
 			float3 f2;
 			f2.x = f*c22*(t4*dr1.x + t5*dr2.x + t6*dr3.x)/(cD*cB2);
 			f2.y = f*c22*(t4*dr1.y + t5*dr2.y + t6*dr3.y)/(cD*cB2);
-			f2.x = f*c22*(t4*dr1.z + t5*dr2.z + t6*dr3.z)/(cD*cB2);
-			
-			printf("%f %f %f\n", f2.x, f2.y, f2.z);
+			f2.z = f*c22*(t4*dr1.z + t5*dr2.z + t6*dr3.z)/(cD*cB2);
 			
 			//ACHTUNG slow perhaps
 			atomicAdd(&(force[a].x), f1.x); 
