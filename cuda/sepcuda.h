@@ -10,7 +10,7 @@
 #include <float.h>
 
 #define SEP_CUDA_NTHREADS 32
-#define SEP_CUDA_MAXNEIGHBS 400
+#define SEP_CUDA_MAXNEIGHBS 600
 
 #define SEP_CUDA_PI 3.14159265
 #define SEP_MAX_NUMB_EXCLUSION 10
