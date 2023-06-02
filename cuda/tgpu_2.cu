@@ -14,6 +14,8 @@ int main(void){
 	sep_cuda_read_bonds(aptr, mptr, "start_water.top");
 	sep_cuda_read_angles(aptr, mptr, "start_water.top");
 	
+	sep_cuda_set_exclusion(aptr, "molecule");
+	
 	float ljparam[3]={1.0,1.0,2.5};
 	
 	sptr->dt = 0.0005;

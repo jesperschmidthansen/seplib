@@ -47,6 +47,8 @@ sepcupart* sep_cuda_allocate_memory(unsigned npartPadding){
 	if ( cudaMallocHost((void **)&(ptr->hcrossings), npartPadding*sizeof(int3)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
+	if ( cudaMallocHost((void **)&(ptr->hmolindex), npartPadding*sizeof(int)) == cudaErrorMemoryAllocation )
+		sep_cuda_mem_error();
 	
 	// Device
 	if ( cudaMalloc((void **)&(ptr->dx), nbytes) == cudaErrorMemoryAllocation )
@@ -83,6 +85,9 @@ sepcupart* sep_cuda_allocate_memory(unsigned npartPadding){
 	if ( cudaMalloc((void **)&(ptr->dcrossings), npartPadding*sizeof(int3)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
+	if ( cudaMalloc((void **)&(ptr->dmolindex), npartPadding*sizeof(int)) == cudaErrorMemoryAllocation )
+		sep_cuda_mem_error();
+	
 	return ptr;
 }
 
@@ -93,13 +98,13 @@ void sep_cuda_free_memory(sepcupart *ptr, sepcusys *sptr){
 	cudaFreeHost(ptr->hf); 	cudaFreeHost(ptr->hx0);
 	cudaFreeHost(ptr->ht);
 	
-	cudaFreeHost(ptr->hexclusion); cudaFreeHost(ptr->hcrossings);
+	cudaFreeHost(ptr->hexclusion); cudaFreeHost(ptr->hcrossings); cudaFreeHost(ptr->hmolindex); 
 	
 	cudaFree(ptr->dx); cudaFree(ptr->dv); cudaFree(ptr->df); cudaFree(ptr->dx0);
 	cudaFree(ptr->ddist); cudaFree(ptr->neighblist);
 	cudaFree(ptr->epot); cudaFree(ptr->press); cudaFree(ptr->sumpress); 
 	
-	cudaFree(ptr->dexclusion); cudaFree(ptr->dcrossings);
+	cudaFree(ptr->dexclusion); cudaFree(ptr->dcrossings); cudaFree(ptr->dmolindex);
 	
 	
 	cudaFreeHost(ptr);
@@ -193,6 +198,7 @@ sepcupart* sep_cuda_load_xyz(const char *xyzfile){
 	ptr->nthreads = nthreads;
 	ptr->npart = npart; 
 	ptr->npart_padding = npartwithPadding;
+	ptr->hexclusion_rule = SEP_CUDA_EXCL_NONE;
 	
 	fscanf(fin, "%f %f %f\n", &(ptr->lbox.x), &(ptr->lbox.y), &(ptr->lbox.z));
 	
@@ -215,8 +221,6 @@ sepcupart* sep_cuda_load_xyz(const char *xyzfile){
 	sep_cuda_copy(ptr, 'v', 'd');
 	sep_cuda_copy(ptr, 'f', 'd');
 	sep_cuda_copy(ptr, 'c', 'd');
-	
-	sep_cuda_reset_exclusion(ptr);
 	
 	return ptr;
 }
@@ -433,6 +437,24 @@ bool sep_cuda_logrem(unsigned n, int base){
 	return retval;
 }
 
+
+void sep_cuda_set_exclusion(sepcupart *aptr, const char rule[]){
+	
+	if ( strcmp(rule, "bonds")==0 ){
+		aptr->hexclusion_rule = SEP_CUDA_EXCL_BONDS;
+	}
+	else if (strcmp(rule, "molecule")==0 ){
+		aptr->hexclusion_rule = SEP_CUDA_EXCL_MOLECULE;
+	}
+	else {
+		fprintf(stderr, "Not valid exclusion rule\n");
+	}
+	
+	size_t nbytes = sizeof(unsigned);
+	cudaMemcpy(&(aptr->dexclusion_rule), &(aptr->hexclusion_rule), nbytes, cudaMemcpyHostToDevice);
+	
+}
+
 // Kernels
 
 __global__ void sep_cuda_reset(float4 *force, float *epot, float4 *press, float4 *sumpress, float3 *energies, unsigned npart){
@@ -440,7 +462,6 @@ __global__ void sep_cuda_reset(float4 *force, float *epot, float4 *press, float4
 	unsigned i = blockDim.x * blockIdx.x + threadIdx.x;
 	
 	if ( i < npart ) {
-		
 		force[i].x = force[i].y = force[i].z = 0.0f;
 		press[i].x = press[i].y = press[i].z = press[i].w = 0.0f;
 		epot[i] = 0.0f;
@@ -449,13 +470,11 @@ __global__ void sep_cuda_reset(float4 *force, float *epot, float4 *press, float4
 			energies->x = 0.0f; energies->y = 0.0f; energies->z = 0.0f; 
 			sumpress->x = sumpress->y = sumpress->z = sumpress->w = 0.0f;
 		}
-		
 	}
 
 }
 
-
-__global__ void sep_cuda_build_neighblist(float *dalpha, int *neighlist, int *exclusion, float4 *p, float *dist, float cf, 
+__global__ void sep_cuda_build_neighblist(int *neighlist, float4 *p, float *dist, float cf, 
 										  float3 lbox, unsigned nneighmax, unsigned npart) {
 
 	int pidx = blockDim.x * blockIdx.x + threadIdx.x;
@@ -463,10 +482,7 @@ __global__ void sep_cuda_build_neighblist(float *dalpha, int *neighlist, int *ex
 	if ( pidx < npart ){
 		float cfsqr = cf*cf; 
 		int arrayOffset = pidx*nneighmax;
-		
-		int excludeOffset = pidx*(SEP_MAX_NUMB_EXCLUSION+1);
-		int numbexclude = exclusion[excludeOffset];
-		
+	
 		float mpx = __ldg(&p[pidx].x); float mpy = __ldg(&p[pidx].y); float mpz = __ldg(&p[pidx].z);
 
 		#pragma unroll	
@@ -488,8 +504,6 @@ __global__ void sep_cuda_build_neighblist(float *dalpha, int *neighlist, int *ex
 				
 				if ( idxj >= npart )  break;
 
-				if ( sep_cuda_exclude_pair(exclusion, numbexclude, excludeOffset, idxj) )
-					continue;
 				/*
 				float dx = mpx - spos[j].x; dx = sep_cuda_wrap(dx, lbox.x);
 				float dy = mpy - spos[j].y; dy = sep_cuda_wrap(dy, lbox.y);
@@ -524,6 +538,73 @@ __global__ void sep_cuda_build_neighblist(float *dalpha, int *neighlist, int *ex
 	}
 }
 	
+/* Neighbourlist for particles excluding particles in same molecule */
+__global__ void sep_cuda_build_neighblist(int *neighlist, float *dist, float4 *p, int *molindex, 
+										  float cf, float3 lbox, unsigned nneighmax, unsigned npart) {
+
+	int pidx = blockDim.x * blockIdx.x + threadIdx.x;
+		
+	if ( pidx < npart ){
+		float cfsqr = cf*cf; 
+		int arrayOffset = pidx*nneighmax;
+		int moli = molindex[pidx];
+		float mpx = __ldg(&p[pidx].x); float mpy = __ldg(&p[pidx].y); float mpz = __ldg(&p[pidx].z);
+
+		#pragma unroll	
+		for ( int n=0; n<nneighmax; n++ ) neighlist[arrayOffset + n] = -1; //<- this should be optimized 
+		
+		// Reset the distance traveled since last update
+		dist[pidx] = 0.0f;
+		
+		int shift = 0;
+		for ( int tile = 0; tile < gridDim.x; tile++ ) {
+
+			/*
+			__shared__ float4 spos[SEP_CUDA_NTHREADS];
+			spos[threadIdx.x] = p[tile * blockDim.x + threadIdx.x];
+			__syncthreads();
+			*/
+			
+			for ( int j = 0; j < SEP_CUDA_NTHREADS; j++ ) {
+				int idxj = tile*blockDim.x + j;
+				
+				if ( idxj >= npart )  break;
+				
+				if ( moli == molindex[idxj] ) continue;
+				
+				/*
+				float dx = mpx - spos[j].x; dx = sep_cuda_wrap(dx, lbox.x);
+				float dy = mpy - spos[j].y; dy = sep_cuda_wrap(dy, lbox.y);
+				float dz = mpz - spos[j].z; dz = sep_cuda_wrap(dz, lbox.z);
+				*/
+				
+				float dx = mpx - p[idxj].x; dx = sep_cuda_wrap(dx, lbox.x);
+				float dy = mpy - p[idxj].y; dy = sep_cuda_wrap(dy, lbox.y);
+				float dz = mpz - p[idxj].z; dz = sep_cuda_wrap(dz, lbox.z);
+				
+				
+				float distSqr = dx*dx + dy*dy + dz*dz;
+
+				if ( distSqr < 2.0*FLT_EPSILON ) continue; // Self contribution
+				
+				if ( distSqr < cfsqr ) {
+						
+					if ( shift < nneighmax )
+						neighlist[arrayOffset + shift] = idxj;
+					else if ( shift >= nneighmax ) {
+						printf("Neighbour list generation failed\n");
+						return;
+					}	
+					
+					shift++;
+				}
+			}
+
+			__syncthreads();
+			
+		}
+	}
+}
 
 
 __global__ void sep_cuda_lj(const char type1, const char type2, float3 params, int *neighblist, float4 *pos, float4 *force,
@@ -1127,10 +1208,18 @@ void sep_cuda_update_neighblist(sepcupart *pptr, sepcusys *sptr, float maxcutoff
 	const int nb = sptr->nblocks; 
 	const int nt = sptr->nthreads;
 
-	sep_cuda_build_neighblist<<<nb, nt>>>
-		(sptr->dalpha, pptr->neighblist, pptr->dexclusion, pptr->dx, pptr->ddist, sptr->skin+maxcutoff, 
-		 pptr->lbox, pptr->maxneighb,pptr->npart);
-	
+	if ( pptr->hexclusion_rule == SEP_CUDA_EXCL_NONE ) {
+		sep_cuda_build_neighblist<<<nb, nt>>>
+			(pptr->neighblist, pptr->dx, pptr->ddist, sptr->skin+maxcutoff, pptr->lbox, pptr->maxneighb,pptr->npart);
+	}
+	else if ( pptr->hexclusion_rule == SEP_CUDA_EXCL_MOLECULE ) {
+		sep_cuda_build_neighblist<<<nb, nt>>>
+			(pptr->neighblist, pptr->ddist, pptr->dx, pptr->dmolindex, sptr->skin+maxcutoff, pptr->lbox, pptr->maxneighb,pptr->npart);
+	}
+	else {
+		fprintf(stderr, "Exclusion rule invalid");
+	}
+		
 	cudaDeviceSynchronize();
 
 }

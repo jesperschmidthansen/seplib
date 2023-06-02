@@ -40,7 +40,8 @@ void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file){
 
 	mptr->nbonds = 0; 
 
-	sep_cuda_reset_exclusion(pptr);
+	// Broken
+	//sep_cuda_reset_exclusion(pptr);
 	
 	FILE *fptr = fopen(file, "r");
 	if ( fptr == NULL ) sep_cuda_file_error();
@@ -75,13 +76,18 @@ void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file){
       
 			int index0 = (mptr->nbonds-1)*3;
       
+			pptr->hmolindex[a]=moli;
+			pptr->hmolindex[b]=moli;
+			
 			mptr->hblist[index0] = a;
 			mptr->hblist[index0+1] = b;
 			mptr->hblist[index0+2] = type;
 			
+			/* Broken
 			sep_cuda_set_hexclusion(pptr, a, b); 
 			sep_cuda_set_hexclusion(pptr, b, a);
-				 
+			*/
+			
 			if ( moli > mptr->nmols ) mptr->nmols = moli;
 		}
 	} while ( !feof(fptr) ); 
@@ -95,7 +101,8 @@ void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file){
     fprintf(stdout, "Found %d molecule(s) and %d bond(s)\n", mptr->nmols, mptr->nbonds);
 	fprintf(stdout, "Copying to device\n");
 	
-	sep_cuda_copy_exclusion(pptr);
+	// Broken
+	//sep_cuda_copy_exclusion(pptr);
 	
 	size_t nbytes =  3*(mptr->nbonds)*sizeof(unsigned int);
 	if ( cudaMalloc((void **)&(mptr->dblist),nbytes) == cudaErrorMemoryAllocation )
@@ -103,6 +110,8 @@ void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file){
 	
 	cudaMemcpy(mptr->dblist, mptr->hblist, nbytes, cudaMemcpyHostToDevice);
 
+	nbytes = pptr->npart_padding*sizeof(int);
+	cudaMemcpy(pptr->dmolindex, pptr->hmolindex, nbytes, cudaMemcpyHostToDevice);
 	
 }
 
@@ -120,8 +129,8 @@ void sep_cuda_read_angles(sepcupart *pptr, sepcumol *mptr, const char *file){
 	
 	mptr->nangles = 0; 
 
-	// We reset exclusion list - 'if you bond you angle'
-	sep_cuda_reset_exclusion(pptr);
+	// Broke
+	//sep_cuda_reset_exclusion(pptr);
 	
 	FILE *fptr = fopen(file, "r");
 	if ( fptr == NULL ) sep_cuda_file_error();
@@ -161,9 +170,11 @@ void sep_cuda_read_angles(sepcupart *pptr, sepcumol *mptr, const char *file){
 			mptr->halist[index0+2] = c;
 			mptr->halist[index0+3] = type;
 			
+			/* Broken
 			sep_cuda_set_hexclusion(pptr, a, b); sep_cuda_set_hexclusion(pptr, a, c); 
 			sep_cuda_set_hexclusion(pptr, b, a); sep_cuda_set_hexclusion(pptr, b, c); 
 			sep_cuda_set_hexclusion(pptr, c, a); sep_cuda_set_hexclusion(pptr, c, b);			
+			*/
 		}
 	} while ( !feof(fptr) ); 
 	
@@ -184,7 +195,8 @@ void sep_cuda_read_angles(sepcupart *pptr, sepcumol *mptr, const char *file){
 	
 		cudaMemcpy(mptr->dalist, mptr->halist, nbytes, cudaMemcpyHostToDevice);
 		
-		sep_cuda_copy_exclusion(pptr);
+		// Broken
+		//sep_cuda_copy_exclusion(pptr);
 	}
 	
 }
@@ -203,8 +215,8 @@ void sep_cuda_read_dihedrals(sepcupart *pptr, sepcumol *mptr, const char *file){
 	
 	mptr->ndihedrals = 0; 
 
-	// We reset exclusion list - all atoms forming a dihedral is now excluded in the pair potential.
-	sep_cuda_reset_exclusion(pptr);
+	// Broken
+	//sep_cuda_reset_exclusion(pptr);
 	
 	FILE *fptr = fopen(file, "r");
 	if ( fptr == NULL ) sep_cuda_file_error();
@@ -245,11 +257,12 @@ void sep_cuda_read_dihedrals(sepcupart *pptr, sepcumol *mptr, const char *file){
 			mptr->hdlist[index0+3] = d;
 			mptr->hdlist[index0+4] = type;
 			
+			/* Broken
 			sep_cuda_set_hexclusion(pptr, a, b); sep_cuda_set_hexclusion(pptr, a, c); sep_cuda_set_hexclusion(pptr, a, d);  
 			sep_cuda_set_hexclusion(pptr, b, a); sep_cuda_set_hexclusion(pptr, b, c); sep_cuda_set_hexclusion(pptr, b, d); 
 			sep_cuda_set_hexclusion(pptr, c, a); sep_cuda_set_hexclusion(pptr, c, b); sep_cuda_set_hexclusion(pptr, c, d);
 			sep_cuda_set_hexclusion(pptr, d, a); sep_cuda_set_hexclusion(pptr, d, b); sep_cuda_set_hexclusion(pptr, d, c);
-			
+			*/
 		}
 	} while ( !feof(fptr) ); 
 	
@@ -270,7 +283,8 @@ void sep_cuda_read_dihedrals(sepcupart *pptr, sepcumol *mptr, const char *file){
 	
 		cudaMemcpy(mptr->ddlist, mptr->hdlist, nbytes, cudaMemcpyHostToDevice);
 		
-		sep_cuda_copy_exclusion(pptr);
+		// Broken
+		//sep_cuda_copy_exclusion(pptr);
 		
 		cudaDeviceSynchronize();
 	}

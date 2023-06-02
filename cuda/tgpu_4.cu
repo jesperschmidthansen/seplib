@@ -38,6 +38,8 @@ int main(void){
 	sep_cuda_read_angles(aptr, mptr, "start_propanol.top");
 	sep_cuda_read_dihedrals(aptr, mptr, "start_propanol.top");
 
+	sep_cuda_set_exclusion(aptr, "molecule");
+	
 	float ljparamCC[3]={1.24,1.05,2.5}; 
 	float ljparamcc[3]={1.31,0.49,2.5};
 	float ljparamOO[3]={1.00,1.00,2.5};
@@ -53,7 +55,7 @@ int main(void){
 	sptr->dt = 0.0005;
 	sepcugh *ghptr = sep_cuda_sample_gh_init(sptr, 50, 20, 10*sptr->dt);
 	
-	int nloops = 1000000; int counter = 0; char filestr[100];
+	int nloops = 100000; int counter = 0; char filestr[100];
 	for ( int n=0; n<nloops; n++ ){
 
 	

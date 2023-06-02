@@ -18,7 +18,7 @@ typedef struct {
 	
 	unsigned ndihedrals;    /**< Total number of dihedrals */
 	unsigned *hdlist, *ddlist;    /**< Bond list: (the four bonded part. indicies + bond type)*num_dihedrals */
-	unsigned ndihedralblocks;
+	unsigned ndihedralblocks;  
 	
 } sepcumol;
 

@@ -13,7 +13,12 @@
 #define SEP_CUDA_MAXNEIGHBS 600
 
 #define SEP_CUDA_PI 3.14159265
-#define SEP_MAX_NUMB_EXCLUSION 10
+
+#define SEP_MAX_NUMB_EXCLUSION 20
+#define SEP_CUDA_EXCL_NONE 0
+#define SEP_CUDA_EXCL_BONDS 1
+#define SEP_CUDA_EXCL_MOLECULE 2
+
 
 typedef struct{
 	
@@ -41,6 +46,12 @@ typedef struct{
 	float3 lbox;
 	unsigned npart, npart_padding;
 	
+	// Molecule index 
+	int *hmolindex, *dmolindex; // 
+	
+	// Pair exlusion rules 0 - no exclusion rule, 1 - exclude bonds, 2 - exclude mol.
+	unsigned hexclusion_rule, dexclusion_rule; 
+	
 } sepcupart;
 
 
@@ -52,13 +63,14 @@ typedef struct{
 
 	float skin;
 	
-	float *dalpha; // On device
-	int *dupdate;  // On device
+	float *dalpha; // On device <- what is this....? 
+	int *dupdate;  // On device 
 	float dt;
 	
 	float3 *henergies, *denergies;  // ekin, epot, momentum
 	float ekin, epot, etot;
 	float temp;
+	
 } sepcusys;
 
 
@@ -93,11 +105,16 @@ float sep_cuda_eval_momentum(sepcupart *aptr);
 
 bool sep_cuda_logrem(unsigned n, int base);
 
+void sep_cuda_set_exclusion(sepcupart *aptr, const char rule[]);
 
 // Kernels
 __global__ void sep_cuda_reset(float4 *force, float *epot, float4 *press, float4 *sumpress, float3 *energies, unsigned npart);
-__global__ void sep_cuda_build_neighblist(float *alpha, int *neighlist, int4 *exclusion, float4 *p, float *dist, float cf, 
+
+__global__ void sep_cuda_build_neighblist(int *neighlist, float4 *p, float *dist, float cf, 
 										  float3 lbox, unsigned nneighmax, unsigned npart);
+
+__global__ void sep_cuda_build_neighblist(int *neighlist, float *dist, float4 *p, int *molindex, 
+										  float cf, float3 lbox, unsigned nneighmax, unsigned npart);
 
 __global__ void sep_cuda_lj(const char type1, const char type2, float3 ljparams, int *neighblist, float4 *pos, float4 *force, 	
 							float *epot, float4 *press, unsigned nneighbmax, float3 lbox, const unsigned npart);
