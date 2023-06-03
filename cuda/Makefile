@@ -46,3 +46,12 @@ sepcudasampler.o: sepcudasampler.cu sepcudasampler.h
 
 sepcuda.o: sepcuda.cu sepcuda.h
 	nvcc -c $(COPTIONS) sepcuda.cu 
+
+cmolsim.mex: cmolsim.cpp
+	nvcc -shared -Xcompiler -fPIC -O2 sepcuda.cu -o libsepcuda.so
+	mkoctfile --verbose --mex cmolsim.cc -L. -lsepcuda.so -lcudart
+	
+	
+	
+	
+	
