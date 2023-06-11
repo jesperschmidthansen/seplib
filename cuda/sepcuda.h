@@ -118,7 +118,7 @@ __global__ void sep_cuda_build_neighblist(int *neighlist, float *dist, float4 *p
 										  float cf, float3 lbox, unsigned nneighmax, unsigned npart);
 
 __global__ void sep_cuda_lj(const char type1, const char type2, float3 ljparams, int *neighblist, float4 *pos, float4 *force, 	
-							float *epot, float4 *press, unsigned nneighbmax, float3 lbox, const unsigned npart);
+							int *molindex, float *epot, float4 *press, unsigned nneighbmax, float3 lbox, const unsigned npart);
 __global__ void sep_cuda_lj(float3 params, int *neighblist, float4 *pos, float4 *force,
 							float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart);
 __global__ void sep_cuda_lj_sf(const char type1, const char type2, float3 params, int *neighblist, float4 *pos, float4 *force,

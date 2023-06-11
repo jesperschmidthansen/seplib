@@ -207,6 +207,7 @@ sepcupart* sep_cuda_load_xyz(const char *xyzfile){
 			   &(ptr->ht[n]), &(ptr->hx[n].x),&(ptr->hx[n].y),&(ptr->hx[n].z), 
 			   &(ptr->hv[n].x),&(ptr->hv[n].y),&(ptr->hv[n].z), &(ptr->hx[n].w), &(ptr->hv[n].w));
 		ptr->hcrossings[n].x = ptr->hcrossings[n].y = ptr->hcrossings[n].z = 0;
+		ptr->hmolindex[n] = -1;
 	}
 	
 	fclose(fin);
@@ -214,7 +215,8 @@ sepcupart* sep_cuda_load_xyz(const char *xyzfile){
 	for ( unsigned n=npart; n<npartwithPadding; n++ ){
 		ptr->hx[n].x = ptr->hx[n].y = ptr->hx[n].z = 0.0f;
 		ptr->hv[n].x = ptr->hv[n].y = ptr->hv[n].z = 0.0f;
-		ptr->hv[n].w = 1.0;	ptr->ht[n] = 'A';
+		ptr->hv[n].w = 1.0; ptr->ht[n] = 'A';
+		ptr->hmolindex[n] = -1;
 	}
 	
 	sep_cuda_copy(ptr, 'x', 'd'); 
@@ -222,6 +224,8 @@ sepcupart* sep_cuda_load_xyz(const char *xyzfile){
 	sep_cuda_copy(ptr, 'f', 'd');
 	sep_cuda_copy(ptr, 'c', 'd');
 	
+	cudaMemcpy(ptr->dmolindex, ptr->hmolindex, npartwithPadding*sizeof(int), cudaMemcpyHostToDevice);
+
 	return ptr;
 }
 
@@ -480,6 +484,7 @@ void sep_cuda_set_exclusion(sepcupart *aptr, const char rule[]){
 	
 }
 
+
 // Kernels
 
 __global__ void sep_cuda_reset(float4 *force, float *epot, float4 *press, float4 *sumpress, float3 *energies, unsigned npart){
@@ -584,12 +589,6 @@ __global__ void sep_cuda_build_neighblist(int *neighlist, float *dist, float4 *p
 		int shift = 0;
 		for ( int tile = 0; tile < gridDim.x; tile++ ) {
 
-			/*
-			__shared__ float4 spos[SEP_CUDA_NTHREADS];
-			spos[threadIdx.x] = p[tile * blockDim.x + threadIdx.x];
-			__syncthreads();
-			*/
-			
 			for ( int j = 0; j < SEP_CUDA_NTHREADS; j++ ) {
 				int idxj = tile*blockDim.x + j;
 				
@@ -597,16 +596,9 @@ __global__ void sep_cuda_build_neighblist(int *neighlist, float *dist, float4 *p
 				
 				if ( moli == molindex[idxj] ) continue;
 				
-				/*
-				float dx = mpx - spos[j].x; dx = sep_cuda_wrap(dx, lbox.x);
-				float dy = mpy - spos[j].y; dy = sep_cuda_wrap(dy, lbox.y);
-				float dz = mpz - spos[j].z; dz = sep_cuda_wrap(dz, lbox.z);
-				*/
-				
 				float dx = mpx - p[idxj].x; dx = sep_cuda_wrap(dx, lbox.x);
 				float dy = mpy - p[idxj].y; dy = sep_cuda_wrap(dy, lbox.y);
 				float dz = mpz - p[idxj].z; dz = sep_cuda_wrap(dz, lbox.z);
-				
 				
 				float distSqr = dx*dx + dy*dy + dz*dz;
 
@@ -624,16 +616,14 @@ __global__ void sep_cuda_build_neighblist(int *neighlist, float *dist, float4 *p
 					shift++;
 				}
 			}
-
-			__syncthreads();
-			
+			// __syncthreads();
 		}
 	}
 }
 
 
 __global__ void sep_cuda_lj(const char type1, const char type2, float3 params, int *neighblist, float4 *pos, float4 *force,
-							float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart){
+							int *molindex, float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart){
 
 	
 	int pidx = blockDim.x * blockIdx.x + threadIdx.x;
@@ -642,6 +632,7 @@ __global__ void sep_cuda_lj(const char type1, const char type2, float3 params, i
 		
 		int itype = __float2int_rd(force[pidx].w);
 		int atype = (int)type1; int btype = (int)type2; //cast stupid
+		//int midx = molindex[pidx];
 		
 		if ( itype != atype && itype != btype ) return;
 		
@@ -662,6 +653,7 @@ __global__ void sep_cuda_lj(const char type1, const char type2, float3 params, i
 		while ( neighblist[n+offset] != -1 ){
 			int pjdx = neighblist[n+offset];
 			int jtype = __float2int_rd(force[pjdx].w);
+			//int mjdx = molindex[pjdx];
 			
 			if ( (itype == atype && jtype == btype) || (itype == btype && jtype == atype) ){
 				
@@ -678,18 +670,36 @@ __global__ void sep_cuda_lj(const char type1, const char type2, float3 params, i
 				
 					Fx += ft*dx; Fy += ft*dy; Fz += ft*dz;
 					Epot += 0.5*(4.0*epsilon*rri3*(rri3 - 1.0) - Epot_shift);
-					mpress.x += dx*ft*dx + dy*ft*dy + dz*ft*dz; 
-					mpress.y += dx*ft*dy; mpress.z += dx*ft*dz; mpress.w += dy*ft*dz;
+					
+					// pidx not in molecule (atom. press)
+					//if ( midx == - 1 ){ 
+						mpress.x += dx*ft*dx + dy*ft*dy + dz*ft*dz; 
+						mpress.y += dx*ft*dy; mpress.z += dx*ft*dz; mpress.w += dy*ft*dz;
+					/*
+					 else pidx/pjdx not in same molecule (mol. press)
+					else if ( midx != mjdx ){
+						mpress.x += ft*dx; mpress.y += ft*dy; mpress.z += ft*dz; 
+					}
+					*/
 				}
 			}
 			
 			n++;
 		}
 		
-		force[pidx].x += Fx; force[pidx].y += Fy; force[pidx].z += Fz;
+		force[pidx].x += Fx; force[pidx].y += Fy; force[pidx].z += Fz; 
 		epot[pidx] += Epot; 
-		press[pidx].x += mpress.x;
-		press[pidx].y += mpress.y; press[pidx].z += mpress.z; press[pidx].w += mpress.w; 
+		
+		//if ( midx == -1 ){
+			press[pidx].x += mpress.x;
+			press[pidx].y += mpress.y; press[pidx].z += mpress.z; press[pidx].w += mpress.w; 
+		/*}
+		else {
+			atomicAdd(&(press[midx].x), mpress.x); 
+			atomicAdd(&(press[midx].y), mpress.y);
+			atomicAdd(&(press[midx].z), mpress.z);
+		}*/
+		
 	}
 		
 }
@@ -894,7 +904,8 @@ __global__ void sep_cuda_lattice_force(const char type, float springConstant, fl
 	
 	
 	
-__global__ void sep_cuda_leapfrog(float4 *pos, float4 *vel, float4 *force, float *dist, int3 *crossing, float dt, float3 lbox, unsigned npart){
+__global__ void sep_cuda_leapfrog(float4 *pos, float4 *vel, 
+								  float4 *force, float *dist, int3 *crossing, float dt, float3 lbox, unsigned npart){
 
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
 	
@@ -907,40 +918,12 @@ __global__ void sep_cuda_leapfrog(float4 *pos, float4 *vel, float4 *force, float
 		vel[i].z += force[i].z*imass*dt;
 		
 		pos[i].x += vel[i].x*dt;
-		/*
-		if ( pos[i].x > lbox.x ){
-			pos[i].x += -lbox.x;
-			crossing[i].x += 1;
-			
-		} else if ( pos[i].x < 0.0 ){
-			pos[i].x += lbox.x;
-			crossing[i].x += -1;
-		}
-		*/
 		pos[i].x = sep_cuda_periodic(pos[i].x, lbox.x, &(crossing[i].x));
 		
 		pos[i].y += vel[i].y*dt;
-		/*
-		if ( pos[i].y > lbox.y ){
-			pos[i].y += -lbox.y;
-			crossing[i].y += 1;
-		} else if ( pos[i].y < 0.0 ){
-			pos[i].y += lbox.y;
-			crossing[i].y += -1;
-		}
-		*/
 		pos[i].y = sep_cuda_periodic(pos[i].y, lbox.y, &(crossing[i].y));
 		
 		pos[i].z += vel[i].z*dt; 
-		/*
-		if ( pos[i].z > lbox.z ){
-			pos[i].z += -lbox.z;
-			crossing[i].z += 1;
-		} else if ( pos[i].z < 0.0 ){
-			pos[i].z += lbox.z;
-			crossing[i].z += -1;
-		}
-		*/
 		pos[i].z = sep_cuda_periodic(pos[i].z, lbox.z, &(crossing[i].z));
 					
 		float dx = oldpos.x - pos[i].x; dx = sep_cuda_wrap(dx, lbox.x);
@@ -1138,8 +1121,9 @@ void sep_cuda_force_lj(sepcupart *pptr, const char types[], float params[3]){
 	float3 ljparams = make_float3(params[0],params[1],params[2]);
 	
 	sep_cuda_lj<<<nb, nt>>>
-		(types[0], types[1], ljparams, pptr->neighblist, pptr->dx, pptr->df, pptr->epot, 
-											pptr->press, pptr->maxneighb, pptr->lbox, pptr->npart);
+		(types[0], types[1], ljparams, pptr->neighblist, pptr->dx, pptr->df, pptr->dmolindex, 
+					pptr->epot, pptr->press, pptr->maxneighb, pptr->lbox, pptr->npart);
+	
 	cudaDeviceSynchronize();
 
 }

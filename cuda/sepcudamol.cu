@@ -311,7 +311,6 @@ void sep_cuda_free_dihedrals(sepcumol *mptr){
 	cudaFree(mptr->ddlist);
 }
 
-
 /*
 void sep_cuda_free_mols(sepcumol *mptr){
 	
