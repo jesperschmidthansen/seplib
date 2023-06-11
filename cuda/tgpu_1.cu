@@ -27,7 +27,7 @@ int main(int argc, char **argv){
 	sepcugh *ghptr = sep_cuda_sample_gh_init(sptr, 50, 30, 10*sptr->dt);
 	
 	float ljparam[3] = {1.0, 1.0, 2.5};
-	
+	float dump[3];
 	float temp0 = 2.0; 	char filestr[100];
 	int n = 0; int nloops = 10000; bool update = true; int counter = 0;
 	while ( n<nloops ){
@@ -53,6 +53,8 @@ int main(int argc, char **argv){
 
 		sep_cuda_integrate_leapfrog(ptr, sptr);
 		
+		if ( n%100==0 ) sep_cuda_reset_momentum(ptr);
+			
 		update = sep_cuda_check_neighblist(ptr, sptr->skin);
 		
 		if ( n%10 ==0 ){
@@ -67,7 +69,7 @@ int main(int argc, char **argv){
 		
 			printf("%f %f %f %f %f %f %f %f %f\n", 
 				   sptr->ekin, sptr->epot, sptr->etot, sptr->temp, normalpress, 
-				   shearpress[0], shearpress[1], shearpress[2], sep_cuda_eval_momentum(ptr));
+				   shearpress[0], shearpress[1], shearpress[2], sep_cuda_eval_momentum(dump, ptr));
 		}
 		
 		n++;

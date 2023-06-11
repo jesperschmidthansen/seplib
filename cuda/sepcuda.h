@@ -101,7 +101,8 @@ void sep_cuda_set_hexclusion(sepcupart *pptr, int a, int b);
 void sep_cuda_compressbox(sepcupart *aptr, float rho0, float compressfactor[3]);
 
 void sep_cuda_get_pressure(double *npress, double *shearpress, sepcupart *aptr);
-float sep_cuda_eval_momentum(sepcupart *aptr);
+float sep_cuda_eval_momentum(float *momentum, sepcupart *aptr);
+void sep_cuda_reset_momentum(sepcupart *aptr);
 
 bool sep_cuda_logrem(unsigned n, int base);
 

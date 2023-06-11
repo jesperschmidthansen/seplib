@@ -412,18 +412,43 @@ void sep_cuda_get_pressure(double *npress, double *shearpress, sepcupart *aptr){
 }
 
 
-float sep_cuda_eval_momentum(sepcupart *aptr){
+float sep_cuda_eval_momentum(float *momentum, sepcupart *aptr){
 	
 	sep_cuda_copy(aptr, 'v', 'h');
+	sep_cuda_copy(aptr, 'x', 'h');
 	
-	float sumv = 0.0;
+	for ( int k=0; k<3; k++ ) momentum[k] = 0.0f;
 	
-	for ( int n=0; n<aptr->npart; n++ ) 
-		sumv += aptr->hv[n].x;
+	for ( int n=0; n<aptr->npart; n++ ){
+		float mass = aptr->hx[n].w;
+		momentum[0] += aptr->hv[n].x*mass;
+		momentum[1] += aptr->hv[n].y*mass;
+		momentum[2] += aptr->hv[n].z*mass;
+	}
 	
-	return sumv/aptr->npart;
+	float retval = (momentum[0]+momentum[1]+momentum[2])/(3.*aptr->npart);
+	return retval;
 }
 
+
+void sep_cuda_reset_momentum(sepcupart *aptr){
+	float momentum[3];
+
+	// Note; hv, hx updated 	
+	sep_cuda_eval_momentum(momentum, aptr);
+	
+	float totalmass = 0.0f;
+	for ( int n=0; n<aptr->npart; n++ ) totalmass += aptr->hx[n].w;
+	
+	for ( int n=0; n<aptr->npart; n++ ){
+		aptr->hv[n].x -=  momentum[0]/totalmass;
+		aptr->hv[n].y -=  momentum[1]/totalmass;
+		aptr->hv[n].z -=  momentum[2]/totalmass;
+	}
+	
+	sep_cuda_copy(aptr, 'v', 'd');
+	
+}
 
 bool sep_cuda_logrem(unsigned n, int base){
 	static unsigned counter = 0;
