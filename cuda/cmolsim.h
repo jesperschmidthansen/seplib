@@ -1,6 +1,8 @@
+/******
+ * 
+ * ***************/
 
-#include "sepcuda.h"
 
-sepcupart* sep_cuda_load_xyz(const char *xyzfile);
-sepcusys *sep_cuda_sys_setup(sepcupart *pptr);
-
+void load_xyz(const char xyzfile[]);
+void free_memory(void);
+void get_positions(void);

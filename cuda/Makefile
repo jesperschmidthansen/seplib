@@ -1,13 +1,13 @@
 
 
-
+INCLUDE_CUDA = /usr/include/
 COPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 --relocatable-device-code=true
 #COPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 -gencode arch=compute_35,code=sm_35 --relocatable-device-code=true
 
 OBJECTFILES = sepcuda.o sepcudamol.o sepcudasampler.o
 
 all: libsepcuda.a tgpu_0 tgpu_1 tgpu_2 tgpu_3 tgpu_4 tcpu_0
-	
+
 # CPU comparison test 
 tcpu_0: tcpu_0.c
 	gcc -W -Wextra -fopenmp -Ofast -o tcpu_0 tcpu_0.c -lsep -lm 
@@ -24,7 +24,7 @@ tgpu_3: sepcuda.o tgpu_3.cu
 # The famous SPC/Fw water model - checks for molecules and charges
 tgpu_2: sepcuda.o sepcudamol.o tgpu_2.cu
 	nvcc $(COPTIONS) -o tgpu_2 sepcuda.o sepcudamol.o tgpu_2.cu 
-	
+
 # Sanity check - energy, pressure, rdf, sacf
 tgpu_1: sepcuda.o sepcudasampler.o tgpu_1.cu 
 	nvcc $(COPTIONS) -o tgpu_1 sepcuda.o sepcudasampler.o tgpu_1.cu
@@ -47,11 +47,8 @@ sepcudasampler.o: sepcudasampler.cu sepcudasampler.h
 sepcuda.o: sepcuda.cu sepcuda.h
 	nvcc -c $(COPTIONS) sepcuda.cu 
 
-cmolsim.mex: cmolsim.cpp
+cmolsim.mex: cmolsim.cpp _cmolsim.cu
 	nvcc -shared -Xcompiler -fPIC -O2 sepcuda.cu -o libsepcuda.so
-	mkoctfile --verbose --mex cmolsim.cc -L. -lsepcuda.so -lcudart
-	
-	
-	
-	
-	
+	nvcc -shared -Xcompiler -fPIC -O2 _cmolsim.cu -o libcmolsim.so
+	mkoctfile --verbose --mex cmolsim.cpp -L. -I. -lcmolsim -lsepcuda -lcudart
+
