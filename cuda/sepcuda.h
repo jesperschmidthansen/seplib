@@ -111,9 +111,12 @@ void sep_cuda_set_exclusion(sepcupart *aptr, const char rule[]);
 // Kernels
 __global__ void sep_cuda_reset(float4 *force, float *epot, float4 *press, float4 *sumpress, float3 *energies, unsigned npart);
 
+
+// Note cf is neighlist cutof and includes skin and interaction cutoff
 __global__ void sep_cuda_build_neighblist(int *neighlist, float4 *p, float *dist, float cf, 
 										  float3 lbox, unsigned nneighmax, unsigned npart);
 
+// Note cf is neighlist cutof and includes skin and interaction cutoff
 __global__ void sep_cuda_build_neighblist(int *neighlist, float *dist, float4 *p, int *molindex, 
 										  float cf, float3 lbox, unsigned nneighmax, unsigned npart);
 
