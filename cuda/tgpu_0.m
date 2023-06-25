@@ -1,3 +1,9 @@
+##########################################
+##
+## Simple benchmark script
+##
+##########################################
+
 clear
 
 system('export LD_LIBRARY_PATH=.');

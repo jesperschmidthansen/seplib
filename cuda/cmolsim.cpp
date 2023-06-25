@@ -22,7 +22,6 @@ enum {
 
 unsigned hashfun(const char *key);
 
-void action_get(int nrhs, const mxArray *prhs[]);
 void action_load(int nrhs, const mxArray *prhs[]);
 void action_clear(void);
 void action_reset(void);
@@ -30,6 +29,9 @@ void action_nupdate();
 void action_calcforce(int nrhs, const mxArray *prhs[]);
 void action_integrate(const mxArray *prhs[]);
 void action_save(const mxArray *prhs[]);
+void action_thermostat(const mxArray *prhs[]);
+void action_set(const mxArray *prhs[]);
+void action_get(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]);
 
 
 void mexFunction (int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
@@ -52,9 +54,13 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 		case CALCFORCE: action_calcforce(nrhs, prhs); break;
 		
 		case INTEGRATE: action_integrate(prhs); break;
+		
+		case THERMOSTAT: action_thermostat(prhs); break;
+		
+		case GET: action_get(nlhs, plhs, nrhs, prhs); break;
 
-		case GET: action_get(nrhs, prhs); break;
-
+		case SET: action_set(prhs); break;
+		
 		case SAVE: action_save(prhs); break;
 
 		case CLEAR: action_clear(); break;
@@ -94,12 +100,25 @@ void action_load(int nrhs, const mxArray *prhs[]){
 
 }
 
-void action_get(int nrhs, const mxArray *prhs[]){
+void action_get(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 	
 	char *specifier = mxArrayToString(prhs[1]);
 	
 	if ( strcmp(specifier, "positions")==0 ){
 		get_positions();
+	}
+	else if ( strcmp(specifier, "pressure")==0 ){
+		plhs[0] = mxCreateDoubleMatrix(4, 1, mxREAL);
+
+		double *pressptr = mxGetPr(plhs[0]);
+    
+		get_pressure(pressptr);
+	}
+	else if ( strcmp(specifier, "energies")==0 ){
+		plhs[0] = mxCreateDoubleMatrix(2, 1, mxREAL);
+		double *energypointer = mxGetPr(plhs[0]);
+		
+		get_energies(energypointer);
 	}
 	
 	free(specifier);
@@ -157,4 +176,32 @@ void action_save(const mxArray *prhs[]){
 	save_xyz(filename);
 	
 	free(filename);
+}
+
+void action_thermostat(const mxArray *prhs[]){
+	
+	char *specifier = mxArrayToString(prhs[1]);
+	
+	if ( strcmp(specifier, "nosehoover") == 0 ){
+		int type = (int)mxGetScalar(prhs[2]); // Still not implemented
+		float temperature = mxGetScalar(prhs[3]);
+		float thermostatMass = mxGetScalar(prhs[4]);
+      
+		thermostat_nh(temperature, thermostatMass);
+	}
+	
+	free(specifier);
+	
+}
+
+void action_set(const mxArray *prhs[]){
+	
+	char *specifier = mxArrayToString(prhs[1]);
+	
+	if ( strcmp(specifier, "resetmomentum")==0 ){
+		int resetfreq = (int)mxGetScalar(prhs[2]);
+		reset_momentum(resetfreq);
+	}
+	
+	free(specifier);
 }

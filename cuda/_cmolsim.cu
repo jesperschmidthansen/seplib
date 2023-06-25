@@ -24,6 +24,7 @@ float maxcutoff = 2.5;
 
 int iterationnumber = 0;
 int neighbupdatefreq = 10;
+int resetmomentum = -1;
 
 bool init = false;
 
@@ -56,7 +57,15 @@ void reset_iteration(void){
 	
 	sep_cuda_reset_iteration(pptr, sptr);
 	
+	if ( resetmomentum >=0 && resetmomentum%iterationnumber==0 )
+		sep_cuda_reset_momentum(pptr);
+	
 }
+
+void reset_momentum(int freq){
+	resetmomentum = freq;
+}
+
 
 void update_neighblist(void){
 	
@@ -83,4 +92,28 @@ void save_xyz(char *filename){
 	
 	sep_cuda_save_xyz(pptr, filename);
 	
+}
+
+void thermostat_nh(float temp0, float mass){
+	
+	sep_cuda_thermostat_nh(pptr, sptr, temp0, mass);
+	
+}
+
+void get_pressure(double *presspointer){
+	
+	double normalpress, shearpress[3];
+	sep_cuda_get_pressure(&normalpress, shearpress, pptr);
+	
+	presspointer[1] = normalpress;
+	for ( int k=1; k<4; k++ ) presspointer[k]=shearpress[k-1];
+	
+}
+
+void get_energies(double *energypointer){
+	
+	sep_cuda_get_energies(pptr, sptr, "nve");
+	
+	energypointer[0] = sptr->ekin;
+	energypointer[1] = sptr->epot;
 }

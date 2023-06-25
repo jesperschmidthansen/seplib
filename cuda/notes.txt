@@ -46,3 +46,5 @@ Notes:
 * Copying positions to sheared memory doen't help (in fact tests using GERMS nbody it is slower)
 
 * Need a function that thermostat/scale velocities for types
+
+* Tested compute capabilities 6.1
