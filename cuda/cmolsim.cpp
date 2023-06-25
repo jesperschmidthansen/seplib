@@ -8,6 +8,7 @@
 #include <string.h>
 #include "cmolsim.h"
 
+
 // Hard-coded hash values for switch - *I* cannot "optimize" further
 // Hash value is simply the string (lower case) character sum
 enum {
@@ -27,6 +28,9 @@ void action_clear(void);
 void action_reset(void);
 void action_nupdate();
 void action_calcforce(int nrhs, const mxArray *prhs[]);
+void action_integrate(const mxArray *prhs[]);
+void action_save(const mxArray *prhs[]);
+
 
 void mexFunction (int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 	
@@ -46,8 +50,12 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 		case NUPDATE: action_nupdate(); break;
 			
 		case CALCFORCE: action_calcforce(nrhs, prhs); break;
+		
+		case INTEGRATE: action_integrate(prhs); break;
 
 		case GET: action_get(nrhs, prhs); break;
+
+		case SAVE: action_save(prhs); break;
 
 		case CLEAR: action_clear(); break;
 
@@ -128,4 +136,25 @@ void action_calcforce(int nrhs, const mxArray *prhs[]){
 	}
 	
 	free(specifier);
+}
+
+void action_integrate(const mxArray *prhs[]){
+	
+	char *specifier = mxArrayToString(prhs[1]);
+    
+    if ( strcmp(specifier, "leapfrog") == 0 ){
+		integrate_leapfrog();
+    }
+    
+    free(specifier);
+}
+
+
+void action_save(const mxArray *prhs[]){
+	
+	char *filename = mxArrayToString(prhs[1]);
+    
+	save_xyz(filename);
+	
+	free(filename);
 }

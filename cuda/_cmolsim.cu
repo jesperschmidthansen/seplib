@@ -4,8 +4,9 @@
  * A wrapper for sepcuda
  * 
  * CUDA headers and libraries are stored different places
- * depending on platform; therefore this wrapper
- * 
+ * depending on platform. This wrapper will hopefully make 
+ * the installation procedure less combersom
+*
  ********************************/
  
 #include "cmolsim.h"
@@ -20,7 +21,12 @@ sepcupart *pptr;
 sepcusys *sptr;
 
 float maxcutoff = 2.5;
+
+int iterationnumber = 0;
+int neighbupdatefreq = 10;
+
 bool init = false;
+
 
 void load_xyz(const char file[]){
 	
@@ -33,8 +39,10 @@ void load_xyz(const char file[]){
 void free_memory(void){
 	
 	
-	sep_cuda_free_memory(pptr, sptr);
-
+	if ( init ) {
+		sep_cuda_free_memory(pptr, sptr);
+		init = false;
+	}
 }
 
 void get_positions(void){
@@ -58,6 +66,21 @@ void update_neighblist(void){
 
 void force_lj(char *types, float *ljparams){
 	
+	if ( iterationnumber%neighbupdatefreq == 0 )
+		sep_cuda_update_neighblist(pptr, sptr, maxcutoff);
+	
 	sep_cuda_force_lj(pptr, types, ljparams);
+	
+}
+
+void integrate_leapfrog(void){
+	
+	sep_cuda_integrate_leapfrog(pptr, sptr);
+	iterationnumber ++;
+}
+
+void save_xyz(char *filename){
+	
+	sep_cuda_save_xyz(pptr, filename);
 	
 }

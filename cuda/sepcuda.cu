@@ -129,7 +129,7 @@ void sep_cuda_copy(sepcupart *ptr, char opt_quantity, char opt_direction){
 			else if ( opt_quantity == 'v' ) // Velocity
 				cudaMemcpy(ptr->dv, ptr->hv, nbytes, cudaMemcpyHostToDevice);
 			else if ( opt_quantity == 'f' ){ // Force + type
-				for ( int n=0; n<ptr->npart_padding; n++ ) ptr->hf[n].w = (float)(ptr->ht[n]);
+				for ( unsigned n=0; n<ptr->npart_padding; n++ ) ptr->hf[n].w = (float)(ptr->ht[n]);
 				cudaMemcpy(ptr->df, ptr->hf, nbytes, cudaMemcpyHostToDevice);	
 			} 
 			else if ( opt_quantity == 'c' ){  // Particle crossings array
@@ -180,7 +180,7 @@ void sep_cuda_copy_energies(sepcusys *sptr){
 }
 
 sepcupart* sep_cuda_load_xyz(const char *xyzfile){
-	int npart;
+	unsigned npart;
 	int nthreads = SEP_CUDA_NTHREADS;
 	
 	FILE *fin = fopen(xyzfile, "r");
@@ -264,7 +264,7 @@ sepcusys *sep_cuda_sys_setup(sepcupart *pptr){
 }
 
 void sep_cuda_load_lattice_positions(sepcupart *ptr, const char *xyzfile){
-	char cdum; float vdum[3], mdum, qdum; int npart;
+	char cdum; float vdum[3], mdum, qdum; unsigned npart;
 
 	FILE *fin = fopen(xyzfile, "r");
 	if ( fin == NULL ) sep_cuda_file_error();
@@ -320,7 +320,7 @@ void sep_cuda_save_xyz(sepcupart *ptr, const char *filestr){
 	fprintf(fout, "%d\n",ptr->npart);
 	
 	fprintf(fout, "%f %f %f\n", ptr->lbox.x, ptr->lbox.y, ptr->lbox.z);
-	for ( int n=0; n<ptr->npart; n++ ){
+	for ( unsigned n=0; n<ptr->npart; n++ ){
 		fprintf(fout, "%c %f %f %f ", (int)ptr->hf[n].w, ptr->hx[n].x, ptr->hx[n].y, ptr->hx[n].z);
 		fprintf(fout, "%f %f %f ", ptr->hv[n].x, ptr->hv[n].y, ptr->hv[n].z);
 		fprintf(fout, "%f %f\n", ptr->hx[n].w, ptr->hv[n].w);
@@ -340,7 +340,7 @@ void sep_cuda_save_crossings(sepcupart *ptr, const char *filestr, float time){
 	fprintf(fout, "%f %f %f\n", time, 0.0f, 0.0f); // To make it easier to load
 	
 	
-	for ( int n=0; n<ptr->npart; n++ )
+	for ( unsigned n=0; n<ptr->npart; n++ )
 		fprintf(fout, "%d %d %d \n", 
 				ptr->hcrossings[n].x, ptr->hcrossings[n].y, ptr->hcrossings[n].z);
 	
@@ -351,7 +351,7 @@ void sep_cuda_save_crossings(sepcupart *ptr, const char *filestr, float time){
 
 void sep_cuda_reset_exclusion(sepcupart *pptr){
 	
-	for ( int n=0; n<pptr->npart_padding; n++ ){
+	for ( unsigned n=0; n<pptr->npart_padding; n++ ){
 		int offset = n*(SEP_MAX_NUMB_EXCLUSION+1);
 
 		pptr->hexclusion[offset] = 0;
@@ -423,7 +423,7 @@ float sep_cuda_eval_momentum(float *momentum, sepcupart *aptr){
 	
 	for ( int k=0; k<3; k++ ) momentum[k] = 0.0f;
 	
-	for ( int n=0; n<aptr->npart; n++ ){
+	for ( unsigned n=0; n<aptr->npart; n++ ){
 		float mass = aptr->hx[n].w;
 		momentum[0] += aptr->hv[n].x*mass;
 		momentum[1] += aptr->hv[n].y*mass;
@@ -442,9 +442,9 @@ void sep_cuda_reset_momentum(sepcupart *aptr){
 	sep_cuda_eval_momentum(momentum, aptr);
 	
 	float totalmass = 0.0f;
-	for ( int n=0; n<aptr->npart; n++ ) totalmass += aptr->hx[n].w;
+	for ( unsigned n=0; n<aptr->npart; n++ ) totalmass += aptr->hx[n].w;
 	
-	for ( int n=0; n<aptr->npart; n++ ){
+	for ( unsigned n=0; n<aptr->npart; n++ ){
 		aptr->hv[n].x -=  momentum[0]/totalmass;
 		aptr->hv[n].y -=  momentum[1]/totalmass;
 		aptr->hv[n].z -=  momentum[2]/totalmass;

@@ -48,7 +48,7 @@ sepcuda.o: sepcuda.cu sepcuda.h
 	nvcc -c $(COPTIONS) sepcuda.cu 
 
 cmolsim.mex: cmolsim.cpp _cmolsim.cu
-	nvcc -Xcompiler -Wfatal-errors -shared -Xcompiler -fPIC -O2 sepcuda.cu -o libsepcuda.so
-	nvcc -Xcompiler -Wfatal-errors -shared -Xcompiler -fPIC -O2 _cmolsim.cu -o libcmolsim.so
+	nvcc -Xcompiler -Wall -shared -Xcompiler -fPIC -O2 sepcuda.cu -o libsepcuda.so
+	nvcc -Xcompiler -Wall -shared -Xcompiler -fPIC -O2 _cmolsim.cu -o libcmolsim.so
 	mkoctfile --verbose --mex cmolsim.cpp -L. -I. -lcmolsim -lsepcuda -lcudart
 
