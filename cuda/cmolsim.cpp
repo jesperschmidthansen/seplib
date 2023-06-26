@@ -1,6 +1,5 @@
 /*******************************************
- * 
- * Basically just a wrapper
+ *
  * 
  *******************************************/
 
@@ -95,9 +94,13 @@ void action_load(int nrhs, const mxArray *prhs[]){
 		load_xyz(file);
 		free(file);
 	}
+	else if ( strcmp(specifier, "top")==0 ){
+		char *file = mxArrayToString(prhs[2]);
+		load_top(file);
+		free(file);
+	}
 	
 	free(specifier);
-
 }
 
 void action_get(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
@@ -153,7 +156,11 @@ void action_calcforce(int nrhs, const mxArray *prhs[]){
       force_lj(types, ljparam);
       free(types);
 	}
-	
+	else if ( strcmp(specifier, "coulomb")==0 ){
+		char *method = mxArrayToString(prhs[2]); // Only sf support - dummy at the moment
+		float cf = mxGetScalar(prhs[3]);
+		free(method);
+	}
 	free(specifier);
 }
 
@@ -183,7 +190,7 @@ void action_thermostat(const mxArray *prhs[]){
 	char *specifier = mxArrayToString(prhs[1]);
 	
 	if ( strcmp(specifier, "nosehoover") == 0 ){
-		int type = (int)mxGetScalar(prhs[2]); // Still not implemented
+		int type = (int)mxGetScalar(prhs[2]); // Still not implemented - now just a dummy
 		float temperature = mxGetScalar(prhs[3]);
 		float thermostatMass = mxGetScalar(prhs[4]);
       
@@ -202,6 +209,8 @@ void action_set(const mxArray *prhs[]){
 		int resetfreq = (int)mxGetScalar(prhs[2]);
 		reset_momentum(resetfreq);
 	}
-	
+	else {
+		mexPrintf("Error in set action");
+	}
 	free(specifier);
 }

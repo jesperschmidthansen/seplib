@@ -1,7 +1,7 @@
 
 
 INCLUDE_CUDA = /usr/include/
-COPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 --relocatable-device-code=true
+COPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 -rdc=true
 #COPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 -gencode arch=compute_35,code=sm_35 --relocatable-device-code=true
 
 OBJECTFILES = sepcuda.o sepcudamol.o sepcudasampler.o
@@ -48,7 +48,8 @@ sepcuda.o: sepcuda.cu sepcuda.h
 	nvcc -c $(COPTIONS) sepcuda.cu 
 
 cmolsim.mex: cmolsim.cpp _cmolsim.cu
-	nvcc -Xcompiler -Wall -shared -Xcompiler -fPIC -O2 sepcuda.cu -o libsepcuda.so
-	nvcc -Xcompiler -Wall -shared -Xcompiler -fPIC -O2 _cmolsim.cu -o libcmolsim.so
-	mkoctfile --verbose --mex cmolsim.cpp -L. -I. -lcmolsim -lsepcuda -lcudart
+	nvcc -rdc=true -Xcompiler -Wall -shared -Xcompiler -fPIC -O2 sepcuda.cu -o libsepcuda.so
+	nvcc -rdc=true -Xcompiler -Wall -shared -Xcompiler -fPIC -O2 sepcudamol.cu -o libsepcudamol.so
+	nvcc -rdc=true -Xcompiler -Wall -shared -Xcompiler -fPIC -O2 _cmolsim.cu -o libcmolsim.so
+	mkoctfile --verbose --mex cmolsim.cpp -L. -I. -lcmolsim -lsepcuda -lcudart -lsepcudamol
 
