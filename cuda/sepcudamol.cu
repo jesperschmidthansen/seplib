@@ -1,6 +1,5 @@
 #include "sepcudamol.h"
 
-
 sepcumol * sep_cuda_init_mol(void){
 	
 	sepcumol *mptr = (sepcumol *)malloc(sizeof(sepcumol));
@@ -334,9 +333,9 @@ __global__ void sep_cuda_bond_harmonic(unsigned *blist, unsigned nbonds, float3 
 			
 			unsigned a = blist[offset]; unsigned b = blist[offset+1]; 
 			
-			float dx = pos[a].x - pos[b].x; dx = sep_cuda_wrap(dx, lbox.x);
-			float dy = pos[a].y - pos[b].y; dy = sep_cuda_wrap(dy, lbox.y);
-			float dz = pos[a].z - pos[b].z; dz = sep_cuda_wrap(dz, lbox.z);
+			float dx = pos[a].x - pos[b].x; dx = sep_cuda_mol_wrap(dx, lbox.x);
+			float dy = pos[a].y - pos[b].y; dy = sep_cuda_mol_wrap(dy, lbox.y);
+			float dz = pos[a].z - pos[b].z; dz = sep_cuda_mol_wrap(dz, lbox.z);
 
 			float dist = sqrtf(dx*dx + dy*dy + dz*dz);
 						
@@ -375,17 +374,17 @@ __global__ void sep_cuda_angle(unsigned *alist, unsigned nangles, float3 anglesp
 			 
 			float3 dr1, dr2;
 			
-			dr1.x = pos[b].x - pos[a].x; dr1.x = sep_cuda_wrap(dr1.x, lbox.x);
-			dr1.y = pos[b].y - pos[a].y; dr1.y = sep_cuda_wrap(dr1.y, lbox.y);
-			dr1.z = pos[b].z - pos[a].z; dr1.z = sep_cuda_wrap(dr1.z, lbox.z);
+			dr1.x = pos[b].x - pos[a].x; dr1.x = sep_cuda_mol_wrap(dr1.x, lbox.x);
+			dr1.y = pos[b].y - pos[a].y; dr1.y = sep_cuda_mol_wrap(dr1.y, lbox.y);
+			dr1.z = pos[b].z - pos[a].z; dr1.z = sep_cuda_mol_wrap(dr1.z, lbox.z);
 
-			dr2.x = pos[c].x - pos[b].x; dr2.x = sep_cuda_wrap(dr2.x, lbox.x);
-			dr2.y = pos[c].y - pos[b].y; dr2.y = sep_cuda_wrap(dr2.y, lbox.y);
-			dr2.z = pos[c].z - pos[b].z; dr2.z = sep_cuda_wrap(dr2.z, lbox.z);
+			dr2.x = pos[c].x - pos[b].x; dr2.x = sep_cuda_mol_wrap(dr2.x, lbox.x);
+			dr2.y = pos[c].y - pos[b].y; dr2.y = sep_cuda_mol_wrap(dr2.y, lbox.y);
+			dr2.z = pos[c].z - pos[b].z; dr2.z = sep_cuda_mol_wrap(dr2.z, lbox.z);
 	
-			float c11 = sep_cuda_dot(dr1, dr1);
-			float c12 = sep_cuda_dot(dr1, dr2);
-			float c22 = sep_cuda_dot(dr2, dr2);
+			float c11 = sep_cuda_mol_dot(dr1, dr1);
+			float c12 = sep_cuda_mol_dot(dr1, dr2);
+			float c22 = sep_cuda_mol_dot(dr2, dr2);
       
 			float cD = sqrtf(c11*c22); float cc = c12/cD; 
 
@@ -440,24 +439,24 @@ __global__ void sep_cuda_ryckertbellemann(unsigned *dlist, unsigned ndihedrals, 
 			
 			float3 dr1, dr2, dr3;
 
-			dr1.x = pos[b].x - pos[a].x; dr1.x = sep_cuda_wrap(dr1.x, lbox.x);
-			dr1.y = pos[b].y - pos[a].y; dr1.y = sep_cuda_wrap(dr1.y, lbox.y);
-			dr1.z = pos[b].z - pos[a].z; dr1.z = sep_cuda_wrap(dr1.z, lbox.z);
+			dr1.x = pos[b].x - pos[a].x; dr1.x = sep_cuda_mol_wrap(dr1.x, lbox.x);
+			dr1.y = pos[b].y - pos[a].y; dr1.y = sep_cuda_mol_wrap(dr1.y, lbox.y);
+			dr1.z = pos[b].z - pos[a].z; dr1.z = sep_cuda_mol_wrap(dr1.z, lbox.z);
 
-			dr2.x = pos[c].x - pos[b].x; dr2.x = sep_cuda_wrap(dr2.x, lbox.x);
-			dr2.y = pos[c].y - pos[b].y; dr2.y = sep_cuda_wrap(dr2.y, lbox.y);
-			dr2.z = pos[c].z - pos[b].z; dr2.z = sep_cuda_wrap(dr2.z, lbox.z);
+			dr2.x = pos[c].x - pos[b].x; dr2.x = sep_cuda_mol_wrap(dr2.x, lbox.x);
+			dr2.y = pos[c].y - pos[b].y; dr2.y = sep_cuda_mol_wrap(dr2.y, lbox.y);
+			dr2.z = pos[c].z - pos[b].z; dr2.z = sep_cuda_mol_wrap(dr2.z, lbox.z);
 	
-			dr3.x = pos[d].x - pos[c].x; dr3.x = sep_cuda_wrap(dr3.x, lbox.x);
-			dr3.y = pos[d].y - pos[c].y; dr3.y = sep_cuda_wrap(dr3.y, lbox.y);
-			dr3.z = pos[d].z - pos[c].z; dr3.z = sep_cuda_wrap(dr3.z, lbox.z);
+			dr3.x = pos[d].x - pos[c].x; dr3.x = sep_cuda_mol_wrap(dr3.x, lbox.x);
+			dr3.y = pos[d].y - pos[c].y; dr3.y = sep_cuda_mol_wrap(dr3.y, lbox.y);
+			dr3.z = pos[d].z - pos[c].z; dr3.z = sep_cuda_mol_wrap(dr3.z, lbox.z);
 	
-			float c11 = sep_cuda_dot(dr1, dr1); 
-			float c12 = sep_cuda_dot(dr1, dr2);
-			float c13 = sep_cuda_dot(dr1, dr3);
-			float c22 = sep_cuda_dot(dr2, dr2);
-			float c23 = sep_cuda_dot(dr2, dr3);
-			float c33 = sep_cuda_dot(dr3, dr3);
+			float c11 = sep_cuda_mol_dot(dr1, dr1); 
+			float c12 = sep_cuda_mol_dot(dr1, dr2);
+			float c13 = sep_cuda_mol_dot(dr1, dr3);
+			float c22 = sep_cuda_mol_dot(dr2, dr2);
+			float c23 = sep_cuda_mol_dot(dr2, dr3);
+			float c33 = sep_cuda_mol_dot(dr3, dr3);
 			 
 			float cA = c13*c22 - c12*c23;
 			float cB1 = c11*c22 - c12*c12;
@@ -508,9 +507,31 @@ __global__ void sep_cuda_ryckertbellemann(unsigned *dlist, unsigned ndihedrals, 
 		
 }
 
-			
-			
-			
+
+// Device functions
+
+__device__ float sep_cuda_mol_dot(float4 a){
+	
+	return (a.x*a.x + a.y*a.y + a.z*a.z);
+	
+}
+
+__device__ float sep_cuda_mol_dot(float3 a, float3 b){
+	
+	return (a.x*b.x + a.y*b.y + a.z*b.z);
+	
+}
+
+__device__ float sep_cuda_mol_wrap(float x, float lbox){
+	
+	if ( x > 0.5*lbox ) 
+		x -= lbox;
+	else if  ( x < -0.5*lbox ) 
+		x += lbox;
+	
+	return x;
+}
+
 
 void sep_cuda_force_harmonic(sepcupart *pptr, sepcumol *mptr, int type, float ks, float lbond){
 	int nb = mptr->nbondblocks; 

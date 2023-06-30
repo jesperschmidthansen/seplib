@@ -1,7 +1,7 @@
 
 
 INCLUDE_CUDA = /usr/include/
-COPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 -rdc=true
+COPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 -Xcompiler -Wall -rdc=true
 #COPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 -gencode arch=compute_35,code=sm_35 --relocatable-device-code=true
 
 OBJECTFILES = sepcuda.o sepcudamol.o sepcudasampler.o

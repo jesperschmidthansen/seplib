@@ -2,6 +2,7 @@
 #include "sepcuda.h"
 
 
+
 void sep_cuda_mem_error(void){
 	
 	fprintf(stderr, "Memory allocation error");
@@ -1065,7 +1066,6 @@ __global__ void sep_cuda_nosehoover(float *alpha, float4 *pos, float4 *vel, floa
 __device__ float sep_cuda_dot(float4 a){
 	
 	return (a.x*a.x + a.y*a.y + a.z*a.z);
-
 	
 }
 

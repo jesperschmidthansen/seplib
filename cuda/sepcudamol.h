@@ -44,6 +44,11 @@ __global__ void sep_cuda_angle(unsigned *alist, unsigned nangles, float3 anglesp
 __global__ void sep_cuda_ryckertbellemann(unsigned *dlist, unsigned ndihedrals, int type, float *params, 
 											float4 *pos, float4 *force, float3 lbox);
 
+// Device
+__device__ float sep_cuda_mol_dot(float4 a);
+__device__ float sep_cuda_mol_dot(float3 a, float3 b);
+__device__ float sep_cuda_mol_wrap(float x, float lbox);
+
 // Wrappers
 void sep_cuda_force_harmonic(sepcupart *pptr, sepcumol *mptr, int type, float ks, float lbond);
 void sep_cuda_force_angle(sepcupart *pptr, sepcumol *mptr, int type, float ktheta, float angle0);

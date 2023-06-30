@@ -151,6 +151,7 @@ __global__ void sep_cuda_lattice_force(const char type, float springConstant, fl
 									   float3 lbox, const unsigned npart);
 
 // Device functions 
+
 __device__ float sep_cuda_wrap(float x, float lbox);
 
 __device__ float sep_cuda_periodic(float x, float lbox, int *crossings);
