@@ -100,7 +100,7 @@ int main(void){
   sep_free_matrix(f_1, natoms);
   sep_free_matrix(f_2, natoms);
   
-  sep_save_xyz(atoms, "C", "final.xyz", "w",  sys);
+  sep_save_xyz(atoms, "C", "final.xyz", "w",  &sys);
 
   /* Freeing memory */
   sep_free_mol(mols, &sys);

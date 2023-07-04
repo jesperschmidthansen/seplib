@@ -57,8 +57,8 @@ void sep_error(char *str, ...){
   printf("\n");
 
 #ifdef OCTAVE
-  fprintf(stdout, "In Octave I will try to continue - not sure what will happen...\n");
-  fflush(stdout);
+  fprintf(stderr, "In Octave I will try to continue - not sure what will happen...\n");
+  fflush(stderr);
 #else
   printf("BAILING OUT\n");	
   exit(EXIT_FAILURE);
@@ -409,8 +409,16 @@ void sep_reset_force_mol(sepsys *sys){
   unsigned int i, j;
   //  long int ii;
 
-  if ( sys->molptr->flag_Fij == 0 )
+  sys->fun_cstate = 0;
+  
+  if ( sys->molptr->flag_Fij == 0 ){
+#ifndef OCTAVE
     sep_error("%s: Tried to reset mol force, but flag is zero", __func__);
+#else
+    sep_warning("%s: Tried to reset mol force, but flag is zero", __func__);
+    sys->fun_cstate = 1; return;
+#endif   
+  }
 
   for (  i=0; i<sys->molptr->num_mols; i++ ){
     for ( j=0; j<sys->molptr->num_mols; j++ ){
@@ -478,13 +486,21 @@ int sep_count_type(seppart *ptr,  char spec, int npart){
 }
 
 
-void sep_set_type(seppart *ptr,  char spec, int numb, int npart){
+void sep_set_type(seppart *ptr,  char spec, int numb, sepsys *sys){
   int index, count;
-
-  if ( sep_count_type(ptr, 'A', npart) < numb )
-    sep_error("%s at line %d Need more 'n' particles\n",
-	      __func__,__LINE__);
-    
+  int npart = sys->npart;
+  
+  sys->fun_cstate = 0;
+  
+  if ( sep_count_type(ptr, 'A', npart) < numb ){
+#ifndef OCTAVE
+    sep_error("%s at line %d Need more 'n' particles\n", __func__,__LINE__);
+#else 
+    sep_warning("%s at line %d Need more 'n' particles\n", __func__,__LINE__);
+    sys->fun_cstate = 1; return;
+#endif
+  }
+  
   srand(time(0));
   count=0;
   while (1){
@@ -523,25 +539,29 @@ void sep_set_xn(seppart *ptr, int npart){
 
 
 void sep_save_xyz(seppart *ptr, const char *partnames, 
-		  const char *file, char *mode, sepsys sys){
+		  const char *file, char *mode, sepsys *sys){
   FILE *fout;
   long int n, k, ntype, ntotal;
  
   ntype = strlen(partnames);
   
   fout = fopen(file, mode);
-  if ( fout == NULL )
-    sep_error("%s at line %d: I couldn't open file\n", __func__,
-	      __LINE__);
+  if ( fout == NULL ){
+#ifndef OCTAVE
+    sep_error("%s at line %d: I couldn't open file\n", __func__, __LINE__);
+#else 
+    sep_error("%s at line %d: I couldn't open file\n", __func__, __LINE__);
+    sys->fun_cstate = 1; return;
+#endif
+  }
   
   ntotal = 0;
   for ( n=0; n<ntype; n++ )
-    ntotal += sep_count_type(ptr, partnames[n], sys.npart);
+    ntotal += sep_count_type(ptr, partnames[n], sys->npart);
     
-  fprintf(fout, "%lu\n%f %f %f\n", ntotal, 
-	  sys.length[0], sys.length[1], sys.length[2]);
+  fprintf(fout, "%lu\n%f %f %f\n", ntotal, sys->length[0],sys->length[1], sys->length[2]);
 
-  for ( n=0; n<sys.npart; n++ ){
+  for ( n=0; n<sys->npart; n++ ){
     for ( k=0; k<ntype; k++ ){
       if ( ptr[n].type == partnames[k] ){
 	fprintf(fout, "%c %.15f %.15f %.15f %.15f %.15f %.15f %.15f %.15f\n",  

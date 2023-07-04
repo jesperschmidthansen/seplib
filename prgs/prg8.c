@@ -65,7 +65,7 @@ int main(void){
     t += dt; n++;
   }
 
-  sep_save_xyz(atoms, "WF", "slitpore.xyz", "w", sys);
+  sep_save_xyz(atoms, "WF", "slitpore.xyz", "w", &sys);
   
   // Freeing memory 
   sep_close(atoms, natoms);

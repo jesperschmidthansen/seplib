@@ -97,7 +97,7 @@ int main(void){
     t += dt; n++;
   }
 
-  sep_save_xyz(atoms, "OH", "final.xyz", "w", sys);
+  sep_save_xyz(atoms, "OH", "final.xyz", "w", &sys);
 
   /* Freeing memory */
   sep_free_mol(mols, &sys);
