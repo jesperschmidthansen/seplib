@@ -125,7 +125,7 @@ typedef struct {
   unsigned int nthreads;   /**< Number of threads */
   
   // Function call state 
-  int fun_cstate;
+  int fun_cstate;          /**< Negative values indicates fail */
 
   // Molecular info - intra mol. forces
   sepmolinfo *molptr;      /**< In order to access the mol. information */ 

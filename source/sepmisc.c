@@ -322,8 +322,7 @@ void sep_save(seppart *ptr, size_t npart, const char *file){
 
   fout = fopen(file, "wb");
   if ( fout == NULL )
-    sep_error("%s at line %d: Couldn't open the file: %s\n", 
-	      __func__, __LINE__, file);
+    sep_error("%s at line %d: Couldn't open the file: %s\n", __func__, __LINE__, file);
 
   fwrite(ptr, sizeof(seppart), npart, fout);
   fclose(fout);
@@ -339,21 +338,17 @@ void sep_load(seppart *ptr, int nneighb, size_t npart, const char *file){
 
   fout = fopen(file, "rb");
   if ( fout == NULL )
-    sep_error("%s at line %d: Couldn't open the file: %s\n", 
-	      __func__, __LINE__, file);
+    sep_error("%s at line %d: Couldn't open the file: %s\n", __func__, __LINE__, file);
 
   if ( fread(ptr, sizeof(seppart), npart, fout) == 0 )
-    sep_error("%s at line %d: Error reading file %s\n", 
-	      __func__, __LINE__, file);
+    sep_error("%s at line %d: Error reading file %s\n",  __func__, __LINE__, file);
     
   fclose(fout);
 
   for ( n=0; n<npart; n++ ){
     ptr[n].neighb = malloc(nneighb*sizeof(int));
-    if ( ptr[n].neighb == NULL ){
-      sep_error("%s at line %d: Couldn't allocate memory\n",
-		__func__, __LINE__);
-    }
+    if ( ptr[n].neighb == NULL )
+      sep_error("%s at line %d: Couldn't allocate memory\n", __func__, __LINE__);
   }
 
 }
