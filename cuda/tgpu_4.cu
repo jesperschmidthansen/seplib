@@ -55,7 +55,7 @@ int main(void){
 	sptr->dt = 0.0005;
 	sepcugh *ghptr = sep_cuda_sample_gh_init(sptr, 50, 20, 10*sptr->dt);
 	
-	int nloops = 100000; int counter = 0; char filestr[100];
+	int nloops = 1000; int counter = 0; char filestr[100];
 	for ( int n=0; n<nloops; n++ ){
 
 	

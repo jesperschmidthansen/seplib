@@ -53,7 +53,7 @@ sepcugh* sep_cuda_sample_gh_init(sepcusys *sysptr, int lvec, unsigned nk, double
 	FILE *fout = fopen("gh-wavevectors.dat", "w");
 	if ( fout == NULL ) sep_cuda_file_error();
 	
-	for ( int n=0; n<nk; n++ ){
+	for ( unsigned n=0; n<nk; n++ ){
 		sptr->wavevector[n] = 2*SEP_CUDA_PI*(n+1)/sysptr->lbox.y;
 		fprintf(fout, "%f\n", sptr->wavevector[n]);
 	}

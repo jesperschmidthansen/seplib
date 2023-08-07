@@ -10,7 +10,7 @@ Notes:
 		GeForce GTX TITAN - bead40
 
 
-	GTX4090: (21. April)
+	GTX4090: (21. April - i43)
 		Npart   sps (update 10)   sps-auto (skin 0.3)    
 		1000    13e3   				8260       
 		4000    7000   				4000

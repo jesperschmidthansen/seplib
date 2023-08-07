@@ -505,6 +505,7 @@ __global__ void sep_cuda_reset(float4 *force, float *epot, float4 *press, float4
 
 }
 
+/* Neighbourlist for particles - no exclusion */
 __global__ void sep_cuda_build_neighblist(int *neighlist, float4 *p, float *dist, float cf, 
 										  float3 lbox, unsigned nneighmax, unsigned npart) {
 
@@ -622,7 +623,7 @@ __global__ void sep_cuda_build_neighblist(int *neighlist, float *dist, float4 *p
 	}
 }
 
-
+/* Pair interactions - types specified */
 __global__ void sep_cuda_lj(const char type1, const char type2, float3 params, int *neighblist, float4 *pos, float4 *force,
 							int *molindex, float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart){
 
@@ -632,7 +633,7 @@ __global__ void sep_cuda_lj(const char type1, const char type2, float3 params, i
 	if ( pidx < npart ) {
 		
 		int itype = __float2int_rd(force[pidx].w);
-		int atype = (int)type1; int btype = (int)type2; //cast stupid
+		int atype = (int)type1; int btype = (int)type2; //cast is stupid!
 		//int midx = molindex[pidx];
 		
 		if ( itype != atype && itype != btype ) return;
@@ -650,6 +651,7 @@ __global__ void sep_cuda_lj(const char type1, const char type2, float3 params, i
 		float Fx = 0.0f; float Fy = 0.0f; float Fz = 0.0f; 
 		float Epot = 0.0f; 
 		float4 mpress; mpress.x = mpress.y = mpress.z = mpress.w = 0.0f;
+
 		int n = 0;
 		while ( neighblist[n+offset] != -1 ){
 			int pjdx = neighblist[n+offset];
@@ -676,12 +678,12 @@ __global__ void sep_cuda_lj(const char type1, const char type2, float3 params, i
 					//if ( midx == - 1 ){ 
 						mpress.x += dx*ft*dx + dy*ft*dy + dz*ft*dz; 
 						mpress.y += dx*ft*dy; mpress.z += dx*ft*dz; mpress.w += dy*ft*dz;
-					/*
-					 else pidx/pjdx not in same molecule (mol. press)
-					else if ( midx != mjdx ){
-						mpress.x += ft*dx; mpress.y += ft*dy; mpress.z += ft*dz; 
-					}
-					*/
+					//}
+					// else pidx/pjdx not in same molecule (mol. press)
+					//else if ( midx != mjdx ){
+				//		mpress.x += ft*dx; mpress.y += ft*dy; mpress.z += ft*dz; 
+				//	}
+					
 				}
 			}
 			
@@ -700,13 +702,13 @@ __global__ void sep_cuda_lj(const char type1, const char type2, float3 params, i
 			atomicAdd(&(press[midx].y), mpress.y);
 			atomicAdd(&(press[midx].z), mpress.z);
 		}*/
-		
+
 	}
 		
 }
 
 
-
+/* Pair interactions - all types have same interactions (faster) */
 __global__ void sep_cuda_lj(float3 params, int *neighblist, float4 *pos, float4 *force,
 							float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart){
 

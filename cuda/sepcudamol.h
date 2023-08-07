@@ -19,7 +19,8 @@ typedef struct {
 	unsigned ndihedrals;    /**< Total number of dihedrals */
 	unsigned *hdlist, *ddlist;    /**< Bond list: (the four bonded part. indicies + bond type)*num_dihedrals */
 	unsigned ndihedralblocks;  
-	
+
+	float3 *hmolpress_conf, *dmolpress_conf;  /** Config. part of the mol. pressure tensor */
 } sepcumol;
 
 

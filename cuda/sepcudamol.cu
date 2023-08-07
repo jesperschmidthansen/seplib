@@ -46,12 +46,12 @@ void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file){
 	if ( fptr == NULL ) sep_cuda_file_error();
 	
 	// We *must* init the pointer since it will be free no matter if the read is sucessful or not
-	mptr->hblist = (unsigned *)malloc(0);
+	mptr->hblist = (unsigned *)malloc(0);  // stupid-cast
 	if ( mptr->hblist == NULL ) sep_cuda_mem_error();
  
 	// Find the 'bonds' section 
 	fptr = sep_cuda_set_file_pointer(fptr, section);
-	if ( fptr==NULL ) sep_cuda_file_error();
+	if ( fptr == NULL ) sep_cuda_file_error();
 	
 	do {
 
@@ -94,7 +94,8 @@ void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file){
 	fclose(fptr);
 
 	// Since number of mols is one bigger than the index
-	(mptr->nmols)++; mptr->nbondblocks = mptr->nbonds/SEP_CUDA_NTHREADS + 1 ;
+	(mptr->nmols)++; 
+	mptr->nbondblocks = mptr->nbonds/SEP_CUDA_NTHREADS + 1 ;
 	
 	fprintf(stdout, "Succesfully read 'bond' section in file %s -> ", file);
     fprintf(stdout, "Found %d molecule(s) and %d bond(s)\n", mptr->nmols, mptr->nbonds);
@@ -111,6 +112,12 @@ void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file){
 
 	nbytes = pptr->npart_padding*sizeof(int);
 	cudaMemcpy(pptr->dmolindex, pptr->hmolindex, nbytes, cudaMemcpyHostToDevice);
+
+	nbytes = mptr->nmols*sizeof(float3);
+	if ( cudaMalloc((void **)&(mptr->dmolpress_conf),nbytes) == cudaErrorMemoryAllocation || 
+		 cudaMallocHost((void **)&(mptr->hmolpress_conf),nbytes) == cudaErrorMemoryAllocation )	
+		sep_cuda_mem_error();
+
 	
 }
 
@@ -293,20 +300,22 @@ void sep_cuda_read_dihedrals(sepcupart *pptr, sepcumol *mptr, const char *file){
 
 void sep_cuda_free_bonds(sepcumol *mptr){
 
-	free(mptr->hblist);
+	cudaFreeHost(mptr->hblist);
 	cudaFree(mptr->dblist);
-  
+
+	cudaFreeHost(mptr->hmolpress_conf);
+	cudaFree(mptr->dmolpress_conf);
 }
 
 void sep_cuda_free_angles(sepcumol *mptr){
 
-	free(mptr->halist);
+	cudaFreeHost(mptr->halist);
 	cudaFree(mptr->dalist);
 }
 
 void sep_cuda_free_dihedrals(sepcumol *mptr){
 
-	free(mptr->hdlist);
+	cudaFreeHost(mptr->hdlist);
 	cudaFree(mptr->ddlist);
 }
 

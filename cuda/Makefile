@@ -1,51 +1,35 @@
 
 
 INCLUDE_CUDA = /usr/include/
-COPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 -Xcompiler -Wall -rdc=true
-#COPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 -gencode arch=compute_35,code=sm_35 --relocatable-device-code=true
+C_OPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 -Xcompiler -Wall -rdc=true
+#COPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 -gencode arch=compute_35,code=sm_35 -rdc=true
 
-OBJECTFILES = sepcuda.o sepcudamol.o sepcudasampler.o
 
-all: libsepcuda.a tgpu_0 tgpu_1 tgpu_2 tgpu_3 tgpu_4 tcpu_0
+SOURCE_FILES = $(wildcard sep*.cu)
+OBJECT_FILES = $(SOURCE_FILES:%.cu=%.o)
+
+all: libsepcuda.a test tcpu_0
+
+# Imagine just how hard I find Makefile syntax... we go manual...
+test: libsepcuda.a
+	nvcc $(C_OPTIONS)  *.o -o tgpu_0 tgpu_0.cu 
+	nvcc $(C_OPTIONS)  *.o -o tgpu_1 tgpu_1.cu 
+	nvcc $(C_OPTIONS)  *.o -o tgpu_2 tgpu_2.cu 
+	nvcc $(C_OPTIONS)  *.o -o tgpu_3 tgpu_3.cu
+	nvcc $(C_OPTIONS)  *.o -o tgpu_4 tgpu_4.cu 
+
 
 # CPU comparison test 
 tcpu_0: tcpu_0.c
-	gcc -W -Wextra -fopenmp -Ofast -o tcpu_0 tcpu_0.c -lsep -lm 
-
-
-# More complicated propanol; multiple bonds, angles and dihedrals
-tgpu_4: sepcuda.o sepcudamol.o tgpu_4.cu
-	nvcc $(COPTIONS) -o tgpu_4 sepcuda.o sepcudamol.o sepcudasampler.o tgpu_4.cu 
-
-# Slitpore - checks virtual lattice site
-tgpu_3: sepcuda.o tgpu_3.cu
-	nvcc $(COPTIONS) -o tgpu_3 sepcuda.o tgpu_3.cu 
-
-# The famous SPC/Fw water model - checks for molecules and charges
-tgpu_2: sepcuda.o sepcudamol.o tgpu_2.cu
-	nvcc $(COPTIONS) -o tgpu_2 sepcuda.o sepcudamol.o tgpu_2.cu 
-
-# Sanity check - energy, pressure, rdf, sacf
-tgpu_1: sepcuda.o sepcudasampler.o tgpu_1.cu 
-	nvcc $(COPTIONS) -o tgpu_1 sepcuda.o sepcudasampler.o tgpu_1.cu
-
-# Simplest benchmark test
-tgpu_0: sepcuda.o tgpu_0.cu
-	nvcc $(COPTIONS) -o tgpu_0 sepcuda.o tgpu_0.cu 
+	gcc -W -Wextra -fopenmp -Ofast -march=native -o tcpu_0 tcpu_0.c -lsep -lm 
 
 # The library
-libsepcuda.a: $(OBJECTFILES)
-	ar r libsepcuda.a $(OBJECTFILES)
+libsepcuda.a: $(OBJECT_FILES)
+	ar -crs libsepcuda.a $(OBJECT_FILES)
 	ranlib libsepcuda.a
 
-sepcudamol.o: sepcudamol.cu sepcudamol.h
-	nvcc -c $(COPTIONS) sepcudamol.cu 
-
-sepcudasampler.o: sepcudasampler.cu sepcudasampler.h
-	nvcc -c $(COPTIONS) sepcudasampler.cu 
-
-sepcuda.o: sepcuda.cu sepcuda.h
-	nvcc -c $(COPTIONS) sepcuda.cu 
+%.o: %.cu
+	nvcc -c $(C_OPTIONS) $<
 
 cmolsim.mex: cmolsim.cpp _cmolsim.cu
 	nvcc -rdc=true -Xcompiler -Wall -shared -Xcompiler -fPIC -O2 sepcuda.cu -o libsepcuda.so

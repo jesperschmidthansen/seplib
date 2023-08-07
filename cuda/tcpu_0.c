@@ -58,7 +58,7 @@ int main(int argc, char **argv){
     t += dt; n++;
   }
   
-  sep_save_xyz(atoms, "A", "test.xyz", "w", sys);
+  sep_save_xyz(atoms, "A", "test.xyz", "w", &sys);
   // Freeing memory 
   sep_close(atoms, natoms);
   sep_free_sys(&sys);

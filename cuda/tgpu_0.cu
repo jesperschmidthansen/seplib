@@ -12,10 +12,10 @@ int main(int argc, char **argv){
 	
 	sepcupart *ptr = sep_cuda_load_xyz(argv[1]);
 	sepcusys *sptr = sep_cuda_sys_setup(ptr);
-	
+
 	float ljparam[3]={1.0,1.0,2.5};
 	
-	int n=0; int nloops = 10000; 
+	int n=0; int nloops = 100000; 
 	while ( n<nloops ){
 		
 		sep_cuda_reset_iteration(ptr, sptr);
