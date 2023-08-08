@@ -8,15 +8,6 @@
 #include <stdlib.h>
 #include <float.h>
 
-/*
-#include "sepcudamisc.h"
-#include "sepcudamem.h"
-#include "sepcudamol.h"
-#include "sepcudasampler.h"
-#include "sepcudaprfrc.h"
-#include "sepcudaintgr.h"
-*/
-
 #define SEP_CUDA_NTHREADS 32
 #define SEP_CUDA_MAXNEIGHBS 600
 
