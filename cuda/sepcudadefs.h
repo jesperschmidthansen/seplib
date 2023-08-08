@@ -63,13 +63,14 @@ typedef struct{
 	float skin;
 	
 	float *dalpha; // On device <- what is this....? 
-	int *dupdate;  // On device 
+	int *dupdate;  // Neighbourlist update? On device 
 	float dt;
 	
 	float3 *henergies, *denergies;  // ekin, epot, momentum
 	float ekin, epot, etot;
 	float temp;
 	
+	bool molprop;	
 } sepcusys;
 
 

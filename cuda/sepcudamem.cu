@@ -167,7 +167,8 @@ sepcusys *sep_cuda_sys_setup(sepcupart *pptr){
 	sptr->dt = 0.005;
 	sptr->skin = 0.3;
 	sptr->lbox = pptr->lbox;
-	
+	sptr->molprop = false;
+
 	if ( cudaMallocHost((void **)&(sptr->henergies), sizeof(float3)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	

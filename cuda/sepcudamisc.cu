@@ -71,6 +71,8 @@ void sep_cuda_copy(sepcupart *ptr, char opt_quantity, char opt_direction){
 	
 }
 
+void sep_cuda_set_molprop_on(sepcusys *sptr) { sptr->molprop = true; }
+
 void sep_cuda_copy_energies(sepcusys *sptr){
 	
 	cudaMemcpy(sptr->henergies, sptr->denergies, sizeof(float3), cudaMemcpyDeviceToHost);

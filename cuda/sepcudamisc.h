@@ -16,6 +16,7 @@ void sep_cuda_get_pressure(double *npress, double *shearpress, sepcupart *aptr);
 float sep_cuda_eval_momentum(float *momentum, sepcupart *aptr);
 void sep_cuda_reset_momentum(sepcupart *aptr);
 bool sep_cuda_logrem(unsigned n, int base);
+void sep_cuda_set_molprop_on(sepcusys *sptr);
 
 /* Helper devince functions - should be calable from all files using the compiler arg. -rdc=true*/
 __device__ float sep_cuda_dot(float4 a);

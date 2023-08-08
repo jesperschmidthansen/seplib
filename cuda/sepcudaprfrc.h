@@ -4,7 +4,7 @@
 
 #include "sepcudadefs.h"
 #include "sepcudamisc.h"
-
+#include <stdlib.h>
 
 bool sep_cuda_check_neighblist(sepcupart *ptr, float maxdist);
 void sep_cuda_reset_exclusion(sepcupart *pptr);
@@ -31,10 +31,11 @@ __global__
 void sep_cuda_lj(float3 params, int *neighblist, float4 *pos, float4 *force,
 							float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart);
 
+/* Shifted force */
 __global__ 
 void sep_cuda_lj_sf(const char type1, const char type2, float3 params, int *neighblist, float4 *pos, float4 *force,
 								float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart);
-
+/* Coulomb shifted force */
 __global__
 void sep_cuda_sf(float cf, int *neighblist, float4 *pos, float4 *vel, float4 *force,
 							float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart);
