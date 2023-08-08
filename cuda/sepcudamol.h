@@ -2,7 +2,8 @@
 #ifndef __SEPCUDAMOL_H__
 #define __SEPCUDAMOL_H__
 
-#include "sepcuda.h"
+#include "sepcudadefs.h"
+#include "sepcudamisc.h"
 
 typedef struct {
 	unsigned nmols; 

@@ -6,7 +6,6 @@
  *  Tested 23 April            
  */
 #include "sepcuda.h"
-#include "sepcudasampler.h"
 
 
 int main(int argc, char **argv){

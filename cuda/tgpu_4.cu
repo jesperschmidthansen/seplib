@@ -3,8 +3,6 @@
 // Akiyama et al., Journal of Solution Chemistry, Vol. 33, Nos. 6/7, 797
 
 #include "sepcuda.h"
-#include "sepcudamol.h"
-#include "sepcudasampler.h"
 
 __global__ void printlist(int index, int *dlist){
 	

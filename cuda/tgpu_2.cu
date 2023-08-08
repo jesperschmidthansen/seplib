@@ -2,7 +2,6 @@
 // Check against Wu et al. SPC/Fw water
 
 #include "sepcuda.h"
-#include "sepcudamol.h"
 
 
 int main(void){

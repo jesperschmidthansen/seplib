@@ -2,7 +2,8 @@
 #ifndef __SEPCUDASAMPLER_H__
 #define __SEPCUDASAMPLER_H__
 
-#include "sepcuda.h"
+#include "sepcudadefs.h"
+#include "sepcudamisc.h"
 
 typedef struct {
 	
