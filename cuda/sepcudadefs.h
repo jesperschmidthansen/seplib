@@ -18,8 +18,7 @@
 #define SEP_CUDA_EXCL_BONDS 1
 #define SEP_CUDA_EXCL_MOLECULE 2
 
-
-typedef struct{
+typedef struct _sepcupart {
 	
 	float4 *hx, *dx; //x,y,z,mass
 	float4 *hv, *dv; //vx,vy,vz,charge 
@@ -32,7 +31,7 @@ typedef struct{
 	int *hexclusion, *dexclusion; // Exclusions (atom index) 
 
 	float *epot;  // Potential energy on particle - on device
-	float4 *press; //sumdiag,xy,xz,yz pressures - on device 
+	float4 *press; // sumdiag,xy,xz,yz contrib pressures per particle - on device 
 	float4 *sumpress; // sum of diag, xy, xz, yz
 	
 	char *ht;   // Type on host only
@@ -41,36 +40,48 @@ typedef struct{
 	float dsumdist; // total distance travelled by all atoms - on device
 	
 	// A few additional members in order to reduce functions API argument list
+	// Some of them also in the sys structure
 	unsigned nthreads, nblocks;
 	float3 lbox;
 	unsigned npart, npart_padding;
 	
-	// Molecule index 
-	int *hmolindex, *dmolindex; // 
-	
+	int *hmolindex, *dmolindex;	// Molecule index 
+
 	// Pair exlusion rules 0 - no exclusion rule, 1 - exclude bonds, 2 - exclude mol.
 	unsigned hexclusion_rule, dexclusion_rule; 
-	
+
+	// Data exchange
+	struct _sepcusys *sptr;
+
 } sepcupart;
 
 
-typedef struct{
-
+typedef struct _sepcusys {
+	// GPU infrastructure 
 	unsigned nthreads, nblocks;
+
+	// System size
 	unsigned npart, npart_padding;
 	float3 lbox; 
 
+	// Simulation details
+	float dt;
 	float skin;
 	
 	float *dalpha; // On device <- what is this....? 
 	int *dupdate;  // Neighbourlist update? On device 
-	float dt;
-	
+
+	// Thermodynamic state of the system
 	float3 *henergies, *denergies;  // ekin, epot, momentum
 	float ekin, epot, etot;
 	float temp;
 	
-	bool molprop;	
+	bool molprop;
+
+	// Data exchange
+	struct _sepcupart *pptr;
+	struct _sepcumol *mptr;
+
 } sepcusys;
 
 

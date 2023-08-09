@@ -1,6 +1,7 @@
 
 #include "sepcudaprfrc.h"
 
+// Host functions
 
 bool sep_cuda_check_neighblist(sepcupart *ptr, float maxdist){
 		
@@ -75,7 +76,7 @@ void sep_cuda_set_exclusion(sepcupart *aptr, const char rule[]){
 }
 
 
-// Kernels
+// Kernel functions
 
 /* Neighbourlist for particles - no exclusion */
 __global__ void sep_cuda_build_neighblist(int *neighlist, float4 *p, float *dist, float cf, 
@@ -161,47 +162,287 @@ __global__ void sep_cuda_build_neighblist(int *neighlist, float *dist, float4 *p
 		dist[pidx] = 0.0f;
 		
 		int shift = 0;
-		for ( int tile = 0; tile < gridDim.x; tile++ ) {
+	for ( int tile = 0; tile < gridDim.x; tile++ ) {
 
-			for ( int j = 0; j < SEP_CUDA_NTHREADS; j++ ) {
-				int idxj = tile*blockDim.x + j;
-				
-				if ( idxj >= npart )  break;
-				
-				if ( moli == molindex[idxj] ) continue;
-				
-				float dx = mpx - p[idxj].x; dx = sep_cuda_wrap(dx, lbox.x);
-				float dy = mpy - p[idxj].y; dy = sep_cuda_wrap(dy, lbox.y);
-				float dz = mpz - p[idxj].z; dz = sep_cuda_wrap(dz, lbox.z);
-				
-				float distSqr = dx*dx + dy*dy + dz*dz;
+		for ( int j = 0; j < SEP_CUDA_NTHREADS; j++ ) {
+			int idxj = tile*blockDim.x + j;
+			
+			if ( idxj >= npart )  break;
+			
+			if ( moli == molindex[idxj] ) continue;
+			
+			float dx = mpx - p[idxj].x; dx = sep_cuda_wrap(dx, lbox.x);
+			float dy = mpy - p[idxj].y; dy = sep_cuda_wrap(dy, lbox.y);
+			float dz = mpz - p[idxj].z; dz = sep_cuda_wrap(dz, lbox.z);
+			
+			float distSqr = dx*dx + dy*dy + dz*dz;
 
-				if ( distSqr < 2.0*FLT_EPSILON ) continue; // Self contribution
-				
-				if ( distSqr < cfsqr ) {
-						
-					if ( shift < nneighmax )
-						neighlist[arrayOffset + shift] = idxj;
-					else if ( shift >= nneighmax ) {
-						printf("Neighbour list generation failed\n");
-						return;
-					}	
+			if ( distSqr < 2.0*FLT_EPSILON ) continue; // Self contribution
+			
+			if ( distSqr < cfsqr ) {
 					
-					shift++;
-				}
+				if ( shift < nneighmax )
+					neighlist[arrayOffset + shift] = idxj;
+				else if ( shift >= nneighmax ) {
+					printf("Neighbour list generation failed\n");
+					return;
+				}	
+				
+				shift++;
 			}
-			// __syncthreads();
 		}
+		// __syncthreads();
 	}
+}
 }
 
 /* Pair interactions - types specified */
 __global__ void sep_cuda_lj(const char type1, const char type2, float3 params, int *neighblist, float4 *pos, float4 *force,
+						float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart){
+
+
+int pidx = blockDim.x * blockIdx.x + threadIdx.x;
+
+if ( pidx < npart ) {
+	
+	int itype = __float2int_rd(force[pidx].w);
+	int atype = (int)type1; int btype = (int)type2; //cast is stupid!
+	
+	if ( itype != atype && itype != btype ) return;
+	
+	float sigma = params.x; 
+	float epsilon = params.y; 
+	float cf = params.z; //__ldg does not work..?
+	float cfsqr = cf*cf;
+	float Epot_shift = 4.0*epsilon*(powf(sigma/cf, 12.) - powf(sigma/cf,6.));
+	
+	int offset = pidx*maxneighb;
+		
+	float mpx = __ldg(&pos[pidx].x); float mpy = __ldg(&pos[pidx].y); float mpz = __ldg(&pos[pidx].z);
+			
+	float Fx = 0.0f; float Fy = 0.0f; float Fz = 0.0f; 
+	float Epot = 0.0f; 
+	float4 mpress; mpress.x = mpress.y = mpress.z = mpress.w = 0.0f;
+
+	int n = 0;
+	while ( neighblist[n+offset] != -1 ){
+		int pjdx = neighblist[n+offset];
+		int jtype = __float2int_rd(force[pjdx].w);
+		
+		if ( (itype == atype && jtype == btype) || (itype == btype && jtype == atype) ){
+			
+			float dx = mpx - pos[pjdx].x; dx = sep_cuda_wrap(dx, lbox.x);
+			float dy = mpy - pos[pjdx].y; dy = sep_cuda_wrap(dy, lbox.y);
+			float dz = mpz - pos[pjdx].z; dz = sep_cuda_wrap(dz, lbox.z);
+
+			float distSqr = dx*dx + dy*dy + dz*dz;
+
+			if ( distSqr < cfsqr ) {
+				float rri = sigma*sigma/distSqr; 
+				float rri3 = rri*rri*rri;
+				float ft = 48.0*epsilon*rri3*(rri3 - 0.5)*rri;
+			
+				Fx += ft*dx; Fy += ft*dy; Fz += ft*dz;
+				Epot += 0.5*(4.0*epsilon*rri3*(rri3 - 1.0) - Epot_shift);
+				
+				mpress.x += dx*ft*dx + dy*ft*dy + dz*ft*dz; 
+				mpress.y += dx*ft*dy; mpress.z += dx*ft*dz; mpress.w += dy*ft*dz;
+			}
+		}
+		
+		n++;
+	}
+	
+	force[pidx].x += Fx; force[pidx].y += Fy; force[pidx].z += Fz; 
+	epot[pidx] += Epot; 
+	
+	press[pidx].x += mpress.x;
+	press[pidx].y += mpress.y; press[pidx].z += mpress.z; press[pidx].w += mpress.w; 
+}
+	
+}
+
+
+/* Pair interactions - all types have same interactions (faster) */
+__global__ void sep_cuda_lj(float3 params, int *neighblist, float4 *pos, float4 *force,
+						float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart){
+
+
+int pidx = blockDim.x * blockIdx.x + threadIdx.x;
+
+if ( pidx < npart ) {
+	
+	float sigma = params.x; 
+	float epsilon = params.y; 
+	float cf = params.z; //__ldg does not work..?
+	float cfsqr = cf*cf;
+	float Epot_shift = 4.0*epsilon*(powf(sigma/cf, 12.) - powf(sigma/cf,6.));
+	
+	int offset = pidx*maxneighb;
+		
+	float mpx = __ldg(&pos[pidx].x); float mpy = __ldg(&pos[pidx].y); float mpz = __ldg(&pos[pidx].z);
+			
+	float Fx = 0.0f; float Fy = 0.0f; float Fz = 0.0f; 
+	float Epot = 0.0f; 
+	float4 mpress; mpress.x = mpress.y = mpress.z = mpress.w = 0.0f;
+	int n = 0;
+	while ( neighblist[n+offset] != -1 ){
+		int pjdx = neighblist[n+offset];
+			
+		float dx = mpx - pos[pjdx].x; dx = sep_cuda_wrap(dx, lbox.x);
+		float dy = mpy - pos[pjdx].y; dy = sep_cuda_wrap(dy, lbox.y);
+		float dz = mpz - pos[pjdx].z; dz = sep_cuda_wrap(dz, lbox.z);
+
+		float distSqr = dx*dx + dy*dy + dz*dz;
+
+		if ( distSqr < cfsqr ) {
+			float rri = sigma*sigma/distSqr; 
+			float rri3 = rri*rri*rri;
+			float ft =  48.0*epsilon*rri3*(rri3 - 0.5)*rri; //pow( sqrtf(1.0/distSqr), 11.0 ); //
+			
+			Fx += ft*dx; Fy += ft*dy; Fz += ft*dz;
+			Epot += 0.5*(4.0*epsilon*rri3*(rri3 - 1.0) - Epot_shift);
+			mpress.x += dx*ft*dx + dy*ft*dy + dz*ft*dz; 
+			mpress.y += dx*ft*dy; mpress.z += dx*ft*dz; mpress.w += dy*ft*dz;
+		}
+		
+		n++;
+	}
+		
+	force[pidx].x += Fx; force[pidx].y += Fy; force[pidx].z += Fz;
+	epot[pidx] += Epot; 
+	press[pidx].x += mpress.x;
+	press[pidx].y += mpress.y; press[pidx].z += mpress.z; press[pidx].w += mpress.w; 
+}
+}
+
+
+
+__global__ void sep_cuda_lj_sf(const char type1, const char type2, float3 params, int *neighblist, float4 *pos, float4 *force,
 							float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart){
 
+
+int pidx = blockDim.x * blockIdx.x + threadIdx.x;
+
+if ( pidx < npart ) {
 	
+	int itype = __float2int_rd(force[pidx].w);
+	int atype = (int)type1; int btype = (int)type2; //cast stupid
+	
+	if ( itype != atype && itype != btype ) return;
+	
+	float sigma = params.x; 
+	float epsilon = params.y; 
+	float cf = params.z; //__ldg does not work..?
+	float cfsqr = cf*cf; 
+	float Epot_shift = 4.0*epsilon*(powf(sigma/cf, 12.) - powf(sigma/cf,6.));
+	float force_shift = 48.0*epsilon*powf(sigma/cf,6.0)*(powf(sigma/cf,3.0) - 0.5)*pow(sigma/cf, 2.0);
+	
+	int offset = pidx*maxneighb;
+		
+	float mpx = __ldg(&pos[pidx].x); float mpy = __ldg(&pos[pidx].y); float mpz = __ldg(&pos[pidx].z);
+			
+	float Fx = 0.0f; float Fy = 0.0f; float Fz = 0.0f; 
+	float Epot = 0.0f; 
+	float4 mpress; mpress.x = mpress.y = mpress.z = mpress.w = 0.0f;
+	int n = 0;
+	while ( neighblist[n+offset] != -1 ){
+		int pjdx = neighblist[n+offset];
+		int jtype = __float2int_rd(force[pjdx].w);
+		
+		if ( (itype == atype && jtype == btype) || (itype == btype && jtype == atype) ){
+			
+			float dx = mpx - pos[pjdx].x; dx = sep_cuda_wrap(dx, lbox.x);
+			float dy = mpy - pos[pjdx].y; dy = sep_cuda_wrap(dy, lbox.y);
+			float dz = mpz - pos[pjdx].z; dz = sep_cuda_wrap(dz, lbox.z);
+
+			float distSqr = dx*dx + dy*dy + dz*dz;
+
+			if ( distSqr < cfsqr ) {
+				float rri = sigma*sigma/distSqr; 
+				float rri3 = rri*rri*rri;
+				float ft = 48.0*epsilon*rri3*(rri3 - 0.5)*rri + force_shift;
+			
+				Fx += ft*dx; Fy += ft*dy; Fz += ft*dz;
+				Epot += 0.5*(4.0*epsilon*rri3*(rri3 - 1.0) - Epot_shift);
+				mpress.x += dx*ft*dx + dy*ft*dy + dz*ft*dz; 
+				mpress.y += dx*ft*dy; mpress.z += dx*ft*dz; mpress.w += dy*ft*dz;
+			}
+		}
+		
+		n++;
+	}
+	
+	force[pidx].x += Fx; force[pidx].y += Fy; force[pidx].z += Fz;
+	epot[pidx] += Epot; 
+	press[pidx].x += mpress.x;
+	press[pidx].y += mpress.y; press[pidx].z += mpress.z; press[pidx].w += mpress.w; 
+}
+	
+}
+
+
+
+__global__ void sep_cuda_sf(float cf, int *neighblist, float4 *pos, float4 *vel, float4 *force,
+						float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart){
+
+__const__ int pidx = blockDim.x * blockIdx.x + threadIdx.x;
+
+if ( pidx < npart ) {
+	
+	float cfsqr = cf*cf;
+	float icf = 1.0/cf;
+	float icf2 = 1.0/cfsqr;
+	
+	int offset = pidx*maxneighb;
+		
+	float mpx = __ldg(&pos[pidx].x); 
+	float mpy = __ldg(&pos[pidx].y); 
+	float mpz = __ldg(&pos[pidx].z);
+			
+	float Fx = 0.0; float Fy = 0.0; float Fz = 0.0; float Epot = 0.0;		
+	float4 mpress; mpress.x = mpress.y = mpress.z = mpress.w = 0.0f;
+	
+	int n = 0;
+	while ( neighblist[n+offset] != -1 ){
+		int pjdx = neighblist[n+offset];
+			
+		float dx = mpx - pos[pjdx].x; dx = sep_cuda_wrap(dx, lbox.x);
+		float dy = mpy - pos[pjdx].y; dy = sep_cuda_wrap(dy, lbox.y);
+		float dz = mpz - pos[pjdx].z; dz = sep_cuda_wrap(dz, lbox.z);
+
+		float distSqr = dx*dx + dy*dy + dz*dz;
+
+		if ( distSqr < cfsqr ) {
+			float zizj = vel[pidx].w*vel[pjdx].w;
+			float dist = sqrtf(distSqr); 
+			float ft = zizj*(1.0/distSqr - icf2)/dist; 
+			
+			Fx += ft*dx; Fy += ft*dy; Fz += ft*dz;
+			
+			Epot += 0.5*zizj*(1.0/dist + (dist-cf)*icf2 - icf);
+			mpress.x += dx*ft*dx + dy*ft*dy + dz*ft*dz; 
+			mpress.y += dx*ft*dy; mpress.z += dx*ft*dz; mpress.w += dy*ft*dz;
+		}
+
+		n++;
+	}
+	
+	force[pidx].x += Fx; force[pidx].y += Fy; force[pidx].z += Fz;
+	epot[pidx] += Epot;	
+	press[pidx].x += mpress.x;
+	press[pidx].y += mpress.y; press[pidx].z += mpress.z; press[pidx].w += mpress.w;
+}	
+	
+}
+
+__global__ void sep_cuda_calc_molforce(float3 *mforce,  const char type1, const char type2, float3 params, float4 *pos, 
+									int *neighblist,  unsigned maxneighb, float4 *force, 
+									float3 lbox, int *molindex, const unsigned npart) {
+
+
 	int pidx = blockDim.x * blockIdx.x + threadIdx.x;
-	
+
 	if ( pidx < npart ) {
 		
 		int itype = __float2int_rd(force[pidx].w);
@@ -209,25 +450,25 @@ __global__ void sep_cuda_lj(const char type1, const char type2, float3 params, i
 		
 		if ( itype != atype && itype != btype ) return;
 		
-		float sigma = params.x; 
-		float epsilon = params.y; 
-		float cf = params.z; //__ldg does not work..?
+		float sigma = params.x;	float epsilon = params.y; float cf = params.z; 
 		float cfsqr = cf*cf;
-		float Epot_shift = 4.0*epsilon*(powf(sigma/cf, 12.) - powf(sigma/cf,6.));
-		
+		int molidx = molindex[pidx];
+
 		int offset = pidx*maxneighb;
 			
 		float mpx = __ldg(&pos[pidx].x); float mpy = __ldg(&pos[pidx].y); float mpz = __ldg(&pos[pidx].z);
 				
 		float Fx = 0.0f; float Fy = 0.0f; float Fz = 0.0f; 
-		float Epot = 0.0f; 
-		float4 mpress; mpress.x = mpress.y = mpress.z = mpress.w = 0.0f;
 
 		int n = 0;
 		while ( neighblist[n+offset] != -1 ){
 			int pjdx = neighblist[n+offset];
+			int jmolidx = molindex[pjdx]; 
+
+			if ( jmolidx == molidx ) { n++; continue; }
+
 			int jtype = __float2int_rd(force[pjdx].w);
-			
+				
 			if ( (itype == atype && jtype == btype) || (itype == btype && jtype == atype) ){
 				
 				float dx = mpx - pos[pjdx].x; dx = sep_cuda_wrap(dx, lbox.x);
@@ -242,216 +483,42 @@ __global__ void sep_cuda_lj(const char type1, const char type2, float3 params, i
 					float ft = 48.0*epsilon*rri3*(rri3 - 0.5)*rri;
 				
 					Fx += ft*dx; Fy += ft*dy; Fz += ft*dz;
-					Epot += 0.5*(4.0*epsilon*rri3*(rri3 - 1.0) - Epot_shift);
-					
-					mpress.x += dx*ft*dx + dy*ft*dy + dz*ft*dz; 
-					mpress.y += dx*ft*dy; mpress.z += dx*ft*dz; mpress.w += dy*ft*dz;
 				}
 			}
 			
 			n++;
 		}
-		
-		force[pidx].x += Fx; force[pidx].y += Fy; force[pidx].z += Fz; 
-		epot[pidx] += Epot; 
-		
-		press[pidx].x += mpress.x;
-		press[pidx].y += mpress.y; press[pidx].z += mpress.z; press[pidx].w += mpress.w; 
+		atomicAdd(&mforce[molidx].x, Fx);
+		atomicAdd(&mforce[molidx].y, Fy);
+		atomicAdd(&mforce[molidx].z, Fz);
 	}
 		
 }
 
 
-/* Pair interactions - all types have same interactions (faster) */
-__global__ void sep_cuda_lj(float3 params, int *neighblist, float4 *pos, float4 *force,
-							float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart){
-
-	
-	int pidx = blockDim.x * blockIdx.x + threadIdx.x;
-	
-	if ( pidx < npart ) {
-		
-		float sigma = params.x; 
-		float epsilon = params.y; 
-		float cf = params.z; //__ldg does not work..?
-		float cfsqr = cf*cf;
-		float Epot_shift = 4.0*epsilon*(powf(sigma/cf, 12.) - powf(sigma/cf,6.));
-		
-		int offset = pidx*maxneighb;
-			
-		float mpx = __ldg(&pos[pidx].x); float mpy = __ldg(&pos[pidx].y); float mpz = __ldg(&pos[pidx].z);
-				
-		float Fx = 0.0f; float Fy = 0.0f; float Fz = 0.0f; 
-		float Epot = 0.0f; 
-		float4 mpress; mpress.x = mpress.y = mpress.z = mpress.w = 0.0f;
-		int n = 0;
-		while ( neighblist[n+offset] != -1 ){
-			int pjdx = neighblist[n+offset];
-				
-			float dx = mpx - pos[pjdx].x; dx = sep_cuda_wrap(dx, lbox.x);
-			float dy = mpy - pos[pjdx].y; dy = sep_cuda_wrap(dy, lbox.y);
-			float dz = mpz - pos[pjdx].z; dz = sep_cuda_wrap(dz, lbox.z);
-
-			float distSqr = dx*dx + dy*dy + dz*dz;
-
-			if ( distSqr < cfsqr ) {
-				float rri = sigma*sigma/distSqr; 
-				float rri3 = rri*rri*rri;
-				float ft =  48.0*epsilon*rri3*(rri3 - 0.5)*rri; //pow( sqrtf(1.0/distSqr), 11.0 ); //
-				
-				Fx += ft*dx; Fy += ft*dy; Fz += ft*dz;
-				Epot += 0.5*(4.0*epsilon*rri3*(rri3 - 1.0) - Epot_shift);
-				mpress.x += dx*ft*dx + dy*ft*dy + dz*ft*dz; 
-				mpress.y += dx*ft*dy; mpress.z += dx*ft*dz; mpress.w += dy*ft*dz;
-			}
-			
-			n++;
-		}
-			
-		force[pidx].x += Fx; force[pidx].y += Fy; force[pidx].z += Fz;
-		epot[pidx] += Epot; 
-		press[pidx].x += mpress.x;
-		press[pidx].y += mpress.y; press[pidx].z += mpress.z; press[pidx].w += mpress.w; 
-	}
-}
-
-
-
-__global__ void sep_cuda_lj_sf(const char type1, const char type2, float3 params, int *neighblist, float4 *pos, float4 *force,
-								float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart){
-
-	
-	int pidx = blockDim.x * blockIdx.x + threadIdx.x;
-	
-	if ( pidx < npart ) {
-		
-		int itype = __float2int_rd(force[pidx].w);
-		int atype = (int)type1; int btype = (int)type2; //cast stupid
-		
-		if ( itype != atype && itype != btype ) return;
-		
-		float sigma = params.x; 
-		float epsilon = params.y; 
-		float cf = params.z; //__ldg does not work..?
-		float cfsqr = cf*cf; 
-		float Epot_shift = 4.0*epsilon*(powf(sigma/cf, 12.) - powf(sigma/cf,6.));
-		float force_shift = 48.0*epsilon*powf(sigma/cf,6.0)*(powf(sigma/cf,3.0) - 0.5)*pow(sigma/cf, 2.0);
-		
-		int offset = pidx*maxneighb;
-			
-		float mpx = __ldg(&pos[pidx].x); float mpy = __ldg(&pos[pidx].y); float mpz = __ldg(&pos[pidx].z);
-				
-		float Fx = 0.0f; float Fy = 0.0f; float Fz = 0.0f; 
-		float Epot = 0.0f; 
-		float4 mpress; mpress.x = mpress.y = mpress.z = mpress.w = 0.0f;
-		int n = 0;
-		while ( neighblist[n+offset] != -1 ){
-			int pjdx = neighblist[n+offset];
-			int jtype = __float2int_rd(force[pjdx].w);
-			
-			if ( (itype == atype && jtype == btype) || (itype == btype && jtype == atype) ){
-				
-				float dx = mpx - pos[pjdx].x; dx = sep_cuda_wrap(dx, lbox.x);
-				float dy = mpy - pos[pjdx].y; dy = sep_cuda_wrap(dy, lbox.y);
-				float dz = mpz - pos[pjdx].z; dz = sep_cuda_wrap(dz, lbox.z);
-
-				float distSqr = dx*dx + dy*dy + dz*dz;
-
-				if ( distSqr < cfsqr ) {
-					float rri = sigma*sigma/distSqr; 
-					float rri3 = rri*rri*rri;
-					float ft = 48.0*epsilon*rri3*(rri3 - 0.5)*rri + force_shift;
-				
-					Fx += ft*dx; Fy += ft*dy; Fz += ft*dz;
-					Epot += 0.5*(4.0*epsilon*rri3*(rri3 - 1.0) - Epot_shift);
-					mpress.x += dx*ft*dx + dy*ft*dy + dz*ft*dz; 
-					mpress.y += dx*ft*dy; mpress.z += dx*ft*dz; mpress.w += dy*ft*dz;
-				}
-			}
-			
-			n++;
-		}
-		
-		force[pidx].x += Fx; force[pidx].y += Fy; force[pidx].z += Fz;
-		epot[pidx] += Epot; 
-		press[pidx].x += mpress.x;
-		press[pidx].y += mpress.y; press[pidx].z += mpress.z; press[pidx].w += mpress.w; 
-	}
-		
-}
-
-
-
-__global__ void sep_cuda_sf(float cf, int *neighblist, float4 *pos, float4 *vel, float4 *force,
-							float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart){
-	
-	__const__ int pidx = blockDim.x * blockIdx.x + threadIdx.x;
-	
-	if ( pidx < npart ) {
-		
-		float cfsqr = cf*cf;
-		float icf = 1.0/cf;
-		float icf2 = 1.0/cfsqr;
-		
-		int offset = pidx*maxneighb;
-			
-		float mpx = __ldg(&pos[pidx].x); 
-		float mpy = __ldg(&pos[pidx].y); 
-		float mpz = __ldg(&pos[pidx].z);
-				
-		float Fx = 0.0; float Fy = 0.0; float Fz = 0.0; float Epot = 0.0;		
-		float4 mpress; mpress.x = mpress.y = mpress.z = mpress.w = 0.0f;
-		
-		int n = 0;
-		while ( neighblist[n+offset] != -1 ){
-			int pjdx = neighblist[n+offset];
-				
-			float dx = mpx - pos[pjdx].x; dx = sep_cuda_wrap(dx, lbox.x);
-			float dy = mpy - pos[pjdx].y; dy = sep_cuda_wrap(dy, lbox.y);
-			float dz = mpz - pos[pjdx].z; dz = sep_cuda_wrap(dz, lbox.z);
-
-			float distSqr = dx*dx + dy*dy + dz*dz;
-
-			if ( distSqr < cfsqr ) {
-				float zizj = vel[pidx].w*vel[pjdx].w;
-				float dist = sqrtf(distSqr); 
-				float ft = zizj*(1.0/distSqr - icf2)/dist; 
-				
-				Fx += ft*dx; Fy += ft*dy; Fz += ft*dz;
-				
-				Epot += 0.5*zizj*(1.0/dist + (dist-cf)*icf2 - icf);
-				mpress.x += dx*ft*dx + dy*ft*dy + dz*ft*dz; 
-				mpress.y += dx*ft*dy; mpress.z += dx*ft*dz; mpress.w += dy*ft*dz;
-			}
-
-			n++;
-		}
-		
-		force[pidx].x += Fx; force[pidx].y += Fy; force[pidx].z += Fz;
-		epot[pidx] += Epot;	
-		press[pidx].x += mpress.x;
-		press[pidx].y += mpress.y; press[pidx].z += mpress.z; press[pidx].w += mpress.w;
-	}	
-		
-}
-
+// Wrapper section
 
 void sep_cuda_force_lj(sepcupart *pptr, const char types[], float params[3]){
 	const int nb = pptr->nblocks; 
 	const int nt = pptr->nthreads;
-	
+
 	float3 ljparams = make_float3(params[0],params[1],params[2]);
-	
+
 	sep_cuda_lj<<<nb, nt>>>
 		(types[0], types[1], ljparams, pptr->neighblist, pptr->dx, pptr->df,  
-					pptr->epot, pptr->press, pptr->maxneighb, pptr->lbox, pptr->npart);
-	
+				pptr->epot, pptr->press, pptr->maxneighb, pptr->lbox, pptr->npart);
+
+	if ( pptr->sptr->molprop )
+		sep_cuda_calc_molforce<<<nb,nt>>>(pptr->sptr->mptr->df, types[0], types[1], ljparams, 
+				pptr->dx, pptr->neighblist, pptr->maxneighb, pptr->df, 
+				pptr->sptr->lbox, pptr->dmolindex, pptr->sptr->npart);
+
 	cudaDeviceSynchronize();
 
 }
 
 void sep_cuda_force_lj(sepcupart *pptr, float params[3]){
-	const int nb = pptr->nblocks; 
+const int nb = pptr->nblocks; 
 	const int nt = pptr->nthreads;
 	
 	float3 ljparams = make_float3(params[0],params[1],params[2]);

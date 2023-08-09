@@ -123,7 +123,8 @@ sepcupart* sep_cuda_load_xyz(const char *xyzfile){
 	ptr->npart = npart; 
 	ptr->npart_padding = npartwithPadding;
 	ptr->hexclusion_rule = SEP_CUDA_EXCL_NONE;
-	
+	ptr->sptr = NULL;
+
 	fscanf(fin, "%f %f %f\n", &(ptr->lbox.x), &(ptr->lbox.y), &(ptr->lbox.z));
 	
 	for ( unsigned n=0; n<npart; n++ ) {
@@ -167,7 +168,9 @@ sepcusys *sep_cuda_sys_setup(sepcupart *pptr){
 	sptr->dt = 0.005;
 	sptr->skin = 0.3;
 	sptr->lbox = pptr->lbox;
-	sptr->molprop = false;
+
+	sptr->pptr = pptr; sptr->mptr = NULL;
+	pptr->sptr = sptr;
 
 	if ( cudaMallocHost((void **)&(sptr->henergies), sizeof(float3)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
@@ -179,7 +182,6 @@ sepcusys *sep_cuda_sys_setup(sepcupart *pptr){
 		sep_cuda_mem_error();
 	
 	sep_cuda_setvalue<<<1,1>>>(sptr->dalpha, 0.2);
-	
 	
 	if ( cudaMalloc((void **)&(sptr->dupdate), sizeof(int)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();

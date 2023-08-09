@@ -8,7 +8,7 @@ C_OPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 -Xcompiler -Wall -rdc=true
 SOURCE_FILES = $(wildcard sep*.cu)
 OBJECT_FILES = $(SOURCE_FILES:%.cu=%.o)
 
-all: libsepcuda.a test tcpu_0
+all: lib test tcpu_0
 
 # Imagine just how hard I find Makefile syntax... we go manual...
 test: libsepcuda.a
@@ -24,7 +24,7 @@ tcpu_0: tcpu_0.c
 	gcc -W -Wextra -fopenmp -Ofast -march=native -o tcpu_0 tcpu_0.c -lsep -lm 
 
 # The library
-libsepcuda.a: $(OBJECT_FILES)
+lib: $(OBJECT_FILES)
 	ar -crs libsepcuda.a $(OBJECT_FILES)
 	ranlib libsepcuda.a
 

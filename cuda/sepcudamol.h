@@ -5,7 +5,7 @@
 #include "sepcudadefs.h"
 #include "sepcudamisc.h"
 
-typedef struct {
+typedef struct _sepcumol {
 	unsigned nmols; 
 	unsigned *hnuau, *dnuau;
 	
@@ -21,7 +21,10 @@ typedef struct {
 	unsigned *hdlist, *ddlist;    /**< Bond list: (the four bonded part. indicies + bond type)*num_dihedrals */
 	unsigned ndihedralblocks;  
 
-	float3 *hmolpress_conf, *dmolpress_conf;  /** Config. part of the mol. pressure tensor */
+	float3 *hf, *df;  /** Molecular forces */
+	float3 *hx, *dx;  /** Centre of mass */
+	float3 *hv, *dv;  /** Centre of mass velocity*/
+
 } sepcumol;
 
 

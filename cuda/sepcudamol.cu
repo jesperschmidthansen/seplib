@@ -101,9 +101,6 @@ void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file){
     fprintf(stdout, "Found %d molecule(s) and %d bond(s)\n", mptr->nmols, mptr->nbonds);
 	fprintf(stdout, "Copying to device\n");
 	
-	// Broken
-	//sep_cuda_copy_exclusion(pptr);
-	
 	size_t nbytes =  3*(mptr->nbonds)*sizeof(unsigned int);
 	if ( cudaMalloc((void **)&(mptr->dblist),nbytes) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
@@ -113,12 +110,18 @@ void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file){
 	nbytes = pptr->npart_padding*sizeof(int);
 	cudaMemcpy(pptr->dmolindex, pptr->hmolindex, nbytes, cudaMemcpyHostToDevice);
 
+	// Allocating for molecular force, positions, and velocities
 	nbytes = mptr->nmols*sizeof(float3);
-	if ( cudaMalloc((void **)&(mptr->dmolpress_conf),nbytes) == cudaErrorMemoryAllocation || 
-		 cudaMallocHost((void **)&(mptr->hmolpress_conf),nbytes) == cudaErrorMemoryAllocation )	
+	if ( cudaMalloc((void **)&(mptr->df),nbytes) == cudaErrorMemoryAllocation || 
+		 cudaMallocHost((void **)&(mptr->hf),nbytes) == cudaErrorMemoryAllocation ||
+		 cudaMalloc((void **)&(mptr->dx),nbytes) == cudaErrorMemoryAllocation || 
+		 cudaMallocHost((void **)&(mptr->hx),nbytes) == cudaErrorMemoryAllocation ||
+		 cudaMalloc((void **)&(mptr->dv),nbytes) == cudaErrorMemoryAllocation || 
+		 cudaMallocHost((void **)&(mptr->hv),nbytes) == cudaErrorMemoryAllocation )	
 		sep_cuda_mem_error();
 
-	
+	// Now sys structure can access molecular info
+	pptr->sptr->mptr=mptr;
 }
 
 
@@ -300,11 +303,12 @@ void sep_cuda_read_dihedrals(sepcupart *pptr, sepcumol *mptr, const char *file){
 
 void sep_cuda_free_bonds(sepcumol *mptr){
 
-	cudaFreeHost(mptr->hblist);
-	cudaFree(mptr->dblist);
+	cudaFreeHost(mptr->hblist);	cudaFree(mptr->dblist);
 
-	cudaFreeHost(mptr->hmolpress_conf);
-	cudaFree(mptr->dmolpress_conf);
+	cudaFreeHost(mptr->hf);	cudaFree(mptr->df);
+	cudaFreeHost(mptr->hv);	cudaFree(mptr->dv);
+	cudaFreeHost(mptr->hx);	cudaFree(mptr->dx);
+
 }
 
 void sep_cuda_free_angles(sepcumol *mptr){
@@ -580,4 +584,63 @@ void sep_cuda_force_dihedral(sepcupart *pptr, sepcumol *mptr, int type, float pa
 
 	cudaDeviceSynchronize();
 
+}
+
+
+void sep_cuda_cmprop(sepcupart *pptr, sepcumol *mptr){
+
+	unsigned nmols = pptr->sptr->mptr->nmols;
+	unsigned npart = pptr->npart;
+	
+	sep_cuda_copy(pptr, 'x', 'h'); 
+	sep_cuda_copy(pptr, 'v', 'h'); 
+	sep_cuda_copy(pptr, 'c', 'h');
+
+	double *masses = (double *)malloc(nmols*sizeof(double));
+
+	for ( unsigned m=0; m<nmols; m++) {
+		mptr->hx[m].x=0.0f;  mptr->hx[m].y=0.0f; mptr->hx[m].z=0.0f;
+		mptr->hv[m].x=0.0f;  mptr->hv[m].y=0.0f; mptr->hv[m].z=0.0f;
+
+		masses[m] = 0.0f;
+	}
+
+	for ( unsigned n=0; n<npart; n++ ){
+		unsigned molidx = pptr->hmolindex[n];
+	
+		double massn = pptr->hx[n].z;
+
+		mptr->hx[molidx].x += massn*(pptr->hx[n].x + pptr->hcrossings[n].x);
+		mptr->hx[molidx].y += massn*(pptr->hx[n].y + pptr->hcrossings[n].y);
+		mptr->hx[molidx].z += massn*(pptr->hx[n].z + pptr->hcrossings[n].z);
+	
+		mptr->hv[molidx].x += massn*pptr->hv[n].x;
+		mptr->hv[molidx].y += massn*pptr->hv[n].y;
+		mptr->hv[molidx].z += massn*pptr->hv[n].z;
+		
+		masses[molidx] += massn;	
+	}	
+
+	for ( unsigned m=0; m<nmols; m++ ){
+		mptr->hx[m].x = mptr->hx[m].x/masses[m]; 
+		mptr->hx[m].x = sep_cuda_wrap_host(mptr->hx[m].x, pptr->sptr->lbox.x);
+		if ( fabs(mptr->hx[m].x) > pptr->sptr->lbox.x )
+			fprintf(stderr, "Molecule position too large");
+
+		mptr->hx[m].y = mptr->hx[m].y/masses[m]; 
+		mptr->hx[m].y = sep_cuda_wrap_host(mptr->hx[m].y, pptr->sptr->lbox.y);
+		if ( fabs(mptr->hx[m].y) > pptr->sptr->lbox.y )
+			fprintf(stderr, "Molecule position too large");
+	
+		mptr->hx[m].z = mptr->hx[m].z/masses[m];
+	   	mptr->hx[m].x = sep_cuda_wrap_host(mptr->hx[m].z, pptr->sptr->lbox.z);
+		if ( fabs(mptr->hx[m].z) > pptr->sptr->lbox.z)  
+			fprintf(stderr, "Molecule position too large");
+	
+		mptr->hv[m].x = mptr->hv[m].x/masses[m];
+		mptr->hv[m].y = mptr->hv[m].y/masses[m];
+		mptr->hv[m].z = mptr->hv[m].z/masses[m];
+	}
+
+	free(masses);
 }

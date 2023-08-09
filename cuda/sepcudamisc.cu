@@ -227,6 +227,18 @@ bool sep_cuda_logrem(unsigned n, int base){
 	return retval;
 }
 
+float sep_cuda_wrap_host(float x, float lbox){
+		
+	if ( x > 0.5*lbox ) 
+		x -= lbox;
+	else if  ( x < -0.5*lbox ) 
+		x += lbox;
+	
+	return x;
+}
+
+
+
 __global__ void sep_cuda_lattice_force(const char type, float springConstant, float4 *pos, float4 *pos0, float4 *force,
 									   float3 lbox, const unsigned npart){
 
@@ -370,6 +382,16 @@ __global__ void sep_cuda_reset(float4 *force, float *epot, float4 *press, float4
 }
 
 
+__global__ void sep_cuda_reset_mol(float3 *force, unsigned nmol){
+	
+
+	unsigned i = blockDim.x * blockIdx.x + threadIdx.x;
+
+	if ( i < nmol )
+		force[i].x = force[i].y = force[i].z = 0.0f;
+}
+
+// Wrapper/interface functions
 void sep_cuda_force_lattice(sepcupart *pptr, const char type, float springConstant){
 	const int nb = pptr->nblocks; 
 	const int nt = pptr->nthreads;
@@ -387,9 +409,15 @@ void sep_cuda_reset_iteration(sepcupart *pptr, sepcusys *sptr){
 
 	sep_cuda_reset<<<nb,nt>>>
 			(pptr->df, pptr->epot, pptr->press, pptr->sumpress, sptr->denergies, pptr->npart);
+
+	if ( sptr->molprop )	
+		sep_cuda_reset_mol<<<nb,nt>>>(sptr->mptr->df, sptr->mptr->nmols);
+
 	cudaDeviceSynchronize();
 
 }
+
+
 
 void sep_cuda_get_energies(sepcupart *ptr, sepcusys *sptr, const char ensemble[]){
 
@@ -459,5 +487,4 @@ __device__ bool sep_cuda_exclude_pair(int *exclusionlist, int numbexclude, int o
 
 	return retval;
 }
-
 
