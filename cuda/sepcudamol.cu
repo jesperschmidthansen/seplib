@@ -117,7 +117,11 @@ void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file){
 		 cudaMalloc((void **)&(mptr->dx),nbytes) == cudaErrorMemoryAllocation || 
 		 cudaMallocHost((void **)&(mptr->hx),nbytes) == cudaErrorMemoryAllocation ||
 		 cudaMalloc((void **)&(mptr->dv),nbytes) == cudaErrorMemoryAllocation || 
-		 cudaMallocHost((void **)&(mptr->hv),nbytes) == cudaErrorMemoryAllocation )	
+		 cudaMallocHost((void **)&(mptr->hv),nbytes) == cudaErrorMemoryAllocation )
+		sep_cuda_mem_error();
+
+	if ( cudaMallocHost((void **)&(mptr->masses), mptr->nmols*sizeof(float)) 
+			== cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 
 	// Now sys structure can access molecular info
@@ -308,7 +312,8 @@ void sep_cuda_free_bonds(sepcumol *mptr){
 	cudaFreeHost(mptr->hf);	cudaFree(mptr->df);
 	cudaFreeHost(mptr->hv);	cudaFree(mptr->dv);
 	cudaFreeHost(mptr->hx);	cudaFree(mptr->dx);
-
+	
+	cudaFreeHost(mptr->masses);
 }
 
 void sep_cuda_free_angles(sepcumol *mptr){
@@ -586,6 +591,20 @@ void sep_cuda_force_dihedral(sepcupart *pptr, sepcumol *mptr, int type, float pa
 
 }
 
+float sep_cuda_mol_translate_tobox(float x, float L){
+	int nL;
+
+	if ( x>0 ){
+		nL = floor(x/L);
+	   	x = x - nL*L;
+	}
+	else if ( x<0 ){
+		nL = ceil(x/L);
+		x = x + nL*L;
+	}
+	
+	return x;
+}	
 
 void sep_cuda_cmprop(sepcupart *pptr, sepcumol *mptr){
 
@@ -596,13 +615,11 @@ void sep_cuda_cmprop(sepcupart *pptr, sepcumol *mptr){
 	sep_cuda_copy(pptr, 'v', 'h'); 
 	sep_cuda_copy(pptr, 'c', 'h');
 
-	double *masses = (double *)malloc(nmols*sizeof(double));
-
 	for ( unsigned m=0; m<nmols; m++) {
 		mptr->hx[m].x=0.0f;  mptr->hx[m].y=0.0f; mptr->hx[m].z=0.0f;
 		mptr->hv[m].x=0.0f;  mptr->hv[m].y=0.0f; mptr->hv[m].z=0.0f;
 
-		masses[m] = 0.0f;
+		mptr->masses[m] = 0.0f;
 	}
 
 	for ( unsigned n=0; n<npart; n++ ){
@@ -618,29 +635,28 @@ void sep_cuda_cmprop(sepcupart *pptr, sepcumol *mptr){
 		mptr->hv[molidx].y += massn*pptr->hv[n].y;
 		mptr->hv[molidx].z += massn*pptr->hv[n].z;
 		
-		masses[molidx] += massn;	
+		mptr->masses[molidx] += massn;	
 	}	
 
-	for ( unsigned m=0; m<nmols; m++ ){
-		mptr->hx[m].x = mptr->hx[m].x/masses[m]; 
-		mptr->hx[m].x = sep_cuda_wrap_host(mptr->hx[m].x, pptr->sptr->lbox.x);
-		if ( fabs(mptr->hx[m].x) > pptr->sptr->lbox.x )
-			fprintf(stderr, "Molecule position too large");
+	float Lx = pptr->sptr->lbox.x;
+	float Ly = pptr->sptr->lbox.y;
+	float Lz = pptr->sptr->lbox.z;
 
-		mptr->hx[m].y = mptr->hx[m].y/masses[m]; 
-		mptr->hx[m].y = sep_cuda_wrap_host(mptr->hx[m].y, pptr->sptr->lbox.y);
-		if ( fabs(mptr->hx[m].y) > pptr->sptr->lbox.y )
-			fprintf(stderr, "Molecule position too large");
+	for ( unsigned m=0; m<nmols; m++ ){
+
+		mptr->hx[m].x = mptr->hx[m].x/mptr->masses[m]; 
+		mptr->hx[m].x = sep_cuda_mol_translate_tobox(mptr->hx[m].x,  Lx);
+
+		mptr->hx[m].y = mptr->hx[m].y/mptr->masses[m]; 
+		mptr->hx[m].y = sep_cuda_mol_translate_tobox(mptr->hx[m].y,  Ly);
+
+		mptr->hx[m].z = mptr->hx[m].z/mptr->masses[m]; 
+		mptr->hx[m].z = sep_cuda_mol_translate_tobox(mptr->hx[m].z,  Lz);
 	
-		mptr->hx[m].z = mptr->hx[m].z/masses[m];
-	   	mptr->hx[m].x = sep_cuda_wrap_host(mptr->hx[m].z, pptr->sptr->lbox.z);
-		if ( fabs(mptr->hx[m].z) > pptr->sptr->lbox.z)  
-			fprintf(stderr, "Molecule position too large");
-	
-		mptr->hv[m].x = mptr->hv[m].x/masses[m];
-		mptr->hv[m].y = mptr->hv[m].y/masses[m];
-		mptr->hv[m].z = mptr->hv[m].z/masses[m];
+		mptr->hv[m].x = mptr->hv[m].x/mptr->masses[m];
+		mptr->hv[m].y = mptr->hv[m].y/mptr->masses[m];
+		mptr->hv[m].z = mptr->hv[m].z/mptr->masses[m];
+
 	}
 
-	free(masses);
 }

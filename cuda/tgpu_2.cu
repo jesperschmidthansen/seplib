@@ -6,20 +6,22 @@
 
 int main(void){
 	
-	sepcupart *aptr = sep_cuda_load_xyz("start_water.xyz");
+	sepcupart *aptr = sep_cuda_load_xyz("tmp.xyz");
 	sepcusys *sptr = sep_cuda_sys_setup(aptr);
 	
 	sepcumol *mptr = sep_cuda_init_mol();
-	sep_cuda_read_bonds(aptr, mptr, "start_water.top");
-	sep_cuda_read_angles(aptr, mptr, "start_water.top");
+	sep_cuda_read_bonds(aptr, mptr, "tmp.top");
+	sep_cuda_read_angles(aptr, mptr, "tmp.top");
 	
 	sep_cuda_set_exclusion(aptr, "molecule");
 	
 	float ljparam[3]={1.0,1.0,2.5};
 	
 	sptr->dt = 0.0005;
+
+	sepcumgh *sampler = sep_cuda_sample_mgh_init(sptr, 100, 5, 10*sptr->dt);
 	
-	int nloops = 10000; int counter = 0; char filestr[100];
+	int nloops = 1000000; int counter = 0; char filestr[100];
 	for ( int n=0; n<nloops; n++ ){
 	
 		sep_cuda_reset_iteration(aptr, sptr);
@@ -36,8 +38,11 @@ int main(void){
 		
 		sep_cuda_thermostat_nh(aptr, sptr, 3.86, 0.1);
 		sep_cuda_integrate_leapfrog(aptr, sptr);
-		
-		if ( n%100==0 ){
+	
+		if ( n%10==0 )
+			sep_cuda_sample_mgh(sampler, aptr, sptr, mptr);
+	
+		if ( n%1000==0 ){
 			sprintf(filestr, "molsim-%05d.xyz", counter);
 			sep_cuda_save_xyz(aptr, filestr);
 			
@@ -47,7 +52,9 @@ int main(void){
 	}
 
 	sep_cuda_save_xyz(aptr, "test.xyz");
-	
+
+	sep_cuda_sample_mgh_free(sampler);
+
 	sep_cuda_free_memory(aptr, sptr);
 	
 	sep_cuda_free_bonds(mptr);

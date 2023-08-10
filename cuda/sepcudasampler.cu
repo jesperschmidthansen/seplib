@@ -1,5 +1,6 @@
 #include "sepcudasampler.h"
 
+// General purpose functions
 double** sep_cuda_matrix(size_t nrow, size_t ncol){
   double **ptr;
   size_t n, m;
@@ -26,7 +27,7 @@ void sep_cuda_free_matrix(double **ptr, size_t nrow){
   free(ptr);
 }
 
-
+// The gen. hydrodynamic sampler - atomic
 sepcugh* sep_cuda_sample_gh_init(sepcusys *sysptr, int lvec, unsigned nk, double dtsample){
 	
 	sepcugh *sptr = (sepcugh *)malloc(sizeof(sepcugh));
@@ -158,7 +159,7 @@ void sep_cuda_sample_gh(sepcugh *sampleptr, sepcupart *pptr, sepcusys *sptr){
 			fprintf(stderr, "Couldn't open file(s)\n");
 		}
 
-				double volume = sptr->lbox.x*sptr->lbox.y*sptr->lbox.z;
+		double volume = sptr->lbox.x*sptr->lbox.y*sptr->lbox.z;
 
 		for ( unsigned n=0; n<sampleptr->lvec; n++ ){
 			double fac = 1.0/(sampleptr->nsample*volume*(sampleptr->lvec-n));
@@ -170,7 +171,6 @@ void sep_cuda_sample_gh(sepcugh *sampleptr, sepcupart *pptr, sepcusys *sptr){
 				 fprintf(fout_dacf, "%f ", sampleptr->dacf[n][k]*fac);
 				 fprintf(fout_tmacf, "%f ", sampleptr->tmacf[n][k]*fac);
 				 fprintf(fout_stress, "%f ", sampleptr->stress[n][k]*fac);
-				 
 			 }
 			 fprintf(fout_dacf, "\n"); fprintf(fout_tmacf, "\n");fprintf(fout_stress, "\n");
 		}
@@ -181,5 +181,118 @@ void sep_cuda_sample_gh(sepcugh *sampleptr, sepcupart *pptr, sepcusys *sptr){
 	
 		sampleptr->index = 0;
 	}
-			
 }
+
+
+// The gen. hydrodynamic sampler - molecular 
+sepcumgh* sep_cuda_sample_mgh_init(sepcusys *sysptr, int lvec, unsigned nk, double dtsample){
+	
+	sepcumgh *sptr = (sepcumgh *)malloc(sizeof(sepcumgh));
+	
+	sptr->stress = (double **)sep_cuda_matrix(lvec, nk);
+	sptr->wavevector = (double *)malloc(nk*sizeof(double));
+
+	sptr->stressa = (double **)sep_cuda_matrix(lvec, nk);
+	sptr->stressb = (double **)sep_cuda_matrix(lvec, nk);
+	
+	sptr->nwaves = nk; sptr->lvec=lvec; sptr->dtsample = dtsample;
+	
+	sptr->index = 0; sptr->nsample = 0;
+	
+	FILE *fout = fopen("mgh-wavevectors.dat", "w");
+	if ( fout == NULL ) sep_cuda_file_error();
+	
+	for ( unsigned n=0; n<nk; n++ ){
+		sptr->wavevector[n] = 2*SEP_CUDA_PI*(n+1)/sysptr->lbox.y;
+		fprintf(fout, "%f\n", sptr->wavevector[n]);
+	}
+	fclose(fout);
+	
+	return sptr;
+}	
+
+
+void sep_cuda_sample_mgh_free(sepcumgh *ptr){
+	
+	sep_cuda_free_matrix(ptr->stress, ptr->lvec);
+
+	free(ptr->wavevector);
+	
+	sep_cuda_free_matrix(ptr->stressa, ptr->lvec);
+	sep_cuda_free_matrix(ptr->stressb, ptr->lvec);
+	
+	free(ptr);
+}
+
+
+void sep_cuda_sample_mgh(sepcumgh *sampleptr, sepcupart *pptr, sepcusys *sptr, sepcumol *mptr){
+	
+	sep_cuda_cmprop(pptr, mptr);
+
+	unsigned index = sampleptr->index;
+	
+	for ( unsigned k=0; k<sampleptr->nwaves; k++ ){
+	  
+		double stressa = 0.0; double stressb = 0.0;
+		
+		for ( unsigned m=0; m<mptr->nmols; m++ ){
+			double kr = sampleptr->wavevector[k]*mptr->hx[m].y;
+			double mass = mptr->masses[m]; double fx = mptr->hf[m].x;
+			
+			double ckr = cos(kr); double skr = sin(kr);
+			double velx = mptr->hv[m].x; double vely = mptr->hv[m].y;
+			
+			stressa += fx/sampleptr->wavevector[k]*ckr - mass*velx*vely*skr;
+			stressb += fx/sampleptr->wavevector[k]*skr + mass*velx*vely*ckr;			
+		}
+		
+		sampleptr->stressa[index][k] = stressa;
+		sampleptr->stressb[index][k] = stressb;
+
+	}
+	
+	(sampleptr->index)++;
+	if ( sampleptr->index == sampleptr->lvec){
+	
+	   for ( unsigned k=0; k<sampleptr->nwaves; k++ ){
+			
+			for ( unsigned n=0; n<sampleptr->lvec; n++ ){
+				for ( unsigned nn=0; nn<sampleptr->lvec-n; nn++ ){
+				
+					double asqr = (sampleptr->stressa[nn][k])*(sampleptr->stressa[nn+n][k]);
+					double bsqr = (sampleptr->stressb[nn][k])*(sampleptr->stressb[nn+n][k]);
+					
+					sampleptr->stress[n][k] += asqr + bsqr;
+				}
+			}
+		}
+		(sampleptr->nsample)++;
+
+		FILE *fout_stress = fopen("mgh-stress.dat", "w");
+
+		if ( fout_stress == NULL ){
+			fprintf(stderr, "Couldn't open file(s)\n");
+		}
+
+		double volume = sptr->lbox.x*sptr->lbox.y*sptr->lbox.z;
+
+		for ( unsigned n=0; n<sampleptr->lvec; n++ ){
+			double fac = 1.0/(sampleptr->nsample*volume*(sampleptr->lvec-n));
+			double t   = n*sampleptr->dtsample;
+      
+			fprintf(fout_stress, "%f ", t); 
+		 
+			for ( unsigned k=0; k<sampleptr->nwaves; k++ ) {
+				fprintf(fout_stress, "%f ", sampleptr->stress[n][k]*fac); 
+			 }
+			 fprintf(fout_stress, "\n");
+		}
+	
+		fclose(fout_stress);
+	
+		sampleptr->index = 0;
+	}
+}
+
+
+
