@@ -19,19 +19,20 @@ int main(void){
 	
 	sptr->dt = 0.0005;
 
-	sepcumgh *sampler = sep_cuda_sample_mgh_init(sptr, 100, 5, 10*sptr->dt);
-	
+	sepcumgh *sampler = sep_cuda_sample_mgh_init(sptr, 200, 5, 10*sptr->dt);
+	sep_cuda_set_molprop_on(sptr);
+
 	int nloops = 1000000; int counter = 0; char filestr[100];
 	for ( int n=0; n<nloops; n++ ){
 	
 		sep_cuda_reset_iteration(aptr, sptr);
 		
 		if ( n%10==0 ){
-			sep_cuda_update_neighblist(aptr, sptr, 2.5);
+			sep_cuda_update_neighblist(aptr, sptr, 3.0);
 		}
 		
 		sep_cuda_force_lj(aptr, "OO", ljparam);
-		sep_cuda_force_sf(aptr, 2.5);
+		sep_cuda_force_sf(aptr, 3.0);
 		
 		sep_cuda_force_harmonic(aptr, mptr, 0, 68000, 0.316);
 		sep_cuda_force_angle(aptr, mptr, 0, 490 , 1.97);

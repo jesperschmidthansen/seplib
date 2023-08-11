@@ -40,6 +40,18 @@ __global__
 void sep_cuda_sf(float cf, int *neighblist, float4 *pos, float4 *vel, float4 *force,
 							float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart);
 
+/* Calculate the molecular force due to LJ interactions */
+__global__ void sep_cuda_calc_molforce(float3 *mforce,  const char type1, const char type2, float3 params, float4 *pos, 
+									int *neighblist,  unsigned maxneighb, float4 *force, 
+									float3 lbox, int *molindex, const unsigned npart); 
+
+
+
+/* Calculate molecular force due to sf Coulomb interactions */
+__global__ void sep_cuda_calc_molforce(float3 *mforce, float cf, int *neighblist, float4 *pos, float4 *vel, 
+										 unsigned maxneighb, int *molindex, float3 lbox, const unsigned npart);
+
+
 
 /* Wrapper interfaces*/
 

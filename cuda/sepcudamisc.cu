@@ -15,7 +15,7 @@ void sep_cuda_file_error(void){
 }
 
 
-void sep_cuda_copy(sepcupart *ptr, char opt_quantity, char opt_direction){
+void sep_cuda_copy(sepcupart *ptr, char opt_quantity, char opt_direction) {
 	
 	size_t nbytes = ptr->npart_padding*sizeof(float4);
 	
@@ -55,6 +55,10 @@ void sep_cuda_copy(sepcupart *ptr, char opt_quantity, char opt_direction){
 			}
 			else if ( opt_quantity == 'l' )
 				cudaMemcpy(ptr->hx0, ptr->dx0, nbytes, cudaMemcpyDeviceToHost);
+			else if ( opt_quantity == 'm' ){
+				nbytes = ptr->sptr->mptr->nmols*sizeof(float3);
+				cudaMemcpy(ptr->sptr->mptr->hf, ptr->sptr->mptr->df, nbytes, cudaMemcpyDeviceToHost);
+			}
 			else {
 				fprintf(stderr, "Invalid opt_quantity");
 				exit(EXIT_FAILURE);
@@ -383,12 +387,12 @@ __global__ void sep_cuda_reset(float4 *force, float *epot, float4 *press, float4
 
 
 __global__ void sep_cuda_reset_mol(float3 *force, unsigned nmol){
-	
 
 	unsigned i = blockDim.x * blockIdx.x + threadIdx.x;
 
-	if ( i < nmol )
+	if ( i < nmol ){
 		force[i].x = force[i].y = force[i].z = 0.0f;
+	}
 }
 
 // Wrapper/interface functions

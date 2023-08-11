@@ -625,7 +625,7 @@ void sep_cuda_cmprop(sepcupart *pptr, sepcumol *mptr){
 	for ( unsigned n=0; n<npart; n++ ){
 		unsigned molidx = pptr->hmolindex[n];
 	
-		double massn = pptr->hx[n].z;
+		double massn = pptr->hx[n].w;
 
 		mptr->hx[molidx].x += massn*(pptr->hx[n].x + pptr->hcrossings[n].x);
 		mptr->hx[molidx].y += massn*(pptr->hx[n].y + pptr->hcrossings[n].y);

@@ -131,7 +131,7 @@ void sep_cuda_sample_gh(sepcugh *sampleptr, sepcupart *pptr, sepcusys *sptr){
 			
 			for ( unsigned n=0; n<sampleptr->lvec; n++ ){
 				for ( unsigned nn=0; nn<sampleptr->lvec-n; nn++ ){
-					
+					// God I miss C99!				
 					double costerm = (sampleptr->mcoskrArray[nn][k])*(sampleptr->mcoskrArray[nn+n][k]);
 					double sinterm = (sampleptr->msinkrArray[nn][k])*(sampleptr->msinkrArray[nn+n][k]);
 					
@@ -228,6 +228,7 @@ void sep_cuda_sample_mgh_free(sepcumgh *ptr){
 void sep_cuda_sample_mgh(sepcumgh *sampleptr, sepcupart *pptr, sepcusys *sptr, sepcumol *mptr){
 	
 	sep_cuda_cmprop(pptr, mptr);
+	sep_cuda_copy(pptr, 'm', 'h');
 
 	unsigned index = sampleptr->index;
 	
@@ -236,6 +237,7 @@ void sep_cuda_sample_mgh(sepcumgh *sampleptr, sepcupart *pptr, sepcusys *sptr, s
 		double stressa = 0.0; double stressb = 0.0;
 		
 		for ( unsigned m=0; m<mptr->nmols; m++ ){
+
 			double kr = sampleptr->wavevector[k]*mptr->hx[m].y;
 			double mass = mptr->masses[m]; double fx = mptr->hf[m].x;
 			
@@ -279,7 +281,7 @@ void sep_cuda_sample_mgh(sepcumgh *sampleptr, sepcupart *pptr, sepcusys *sptr, s
 		for ( unsigned n=0; n<sampleptr->lvec; n++ ){
 			double fac = 1.0/(sampleptr->nsample*volume*(sampleptr->lvec-n));
 			double t   = n*sampleptr->dtsample;
-      
+	
 			fprintf(fout_stress, "%f ", t); 
 		 
 			for ( unsigned k=0; k<sampleptr->nwaves; k++ ) {
