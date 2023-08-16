@@ -65,8 +65,8 @@ int main(int argc, char **argv){
 			double normalpress, shearpress[3];
 			sep_cuda_get_pressure(&normalpress, shearpress, ptr);
 			sep_cuda_get_energies(ptr, sptr, ensemble);
-		
-			printf("%f %f %f %f %f %f %f %f %f\n", 
+			
+			printf("%f %f %f %f %f %f %f %f %f \n", 
 				   sptr->ekin, sptr->epot, sptr->etot, sptr->temp, normalpress, 
 				   shearpress[0], shearpress[1], shearpress[2], sep_cuda_eval_momentum(dump, ptr));
 		}

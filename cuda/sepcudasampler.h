@@ -41,6 +41,18 @@ typedef struct {
 
 } sepcumgh;
 
+/*
+typedef struct {
+
+	double *corr;
+	double *stress;
+
+	unsigned index, nsample, lvec;
+	double dtsample;
+
+} sepcumsacf;
+*/
+
 // Aux
 double** sep_cuda_matrix(size_t nrow, size_t ncol);
 void sep_cuda_free_matrix(double **ptr, size_t nrow);

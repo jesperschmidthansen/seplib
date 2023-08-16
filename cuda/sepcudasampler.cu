@@ -184,7 +184,7 @@ void sep_cuda_sample_gh(sepcugh *sampleptr, sepcupart *pptr, sepcusys *sptr){
 }
 
 
-// The gen. hydrodynamic sampler - molecular 
+// The gen. hydrodynamic sampler - molecular UNDER CONSTRUCTION 
 sepcumgh* sep_cuda_sample_mgh_init(sepcusys *sysptr, int lvec, unsigned nk, double dtsample){
 	
 	sepcumgh *sptr = (sepcumgh *)malloc(sizeof(sepcumgh));
@@ -227,11 +227,10 @@ void sep_cuda_sample_mgh_free(sepcumgh *ptr){
 
 void sep_cuda_sample_mgh(sepcumgh *sampleptr, sepcupart *pptr, sepcusys *sptr, sepcumol *mptr){
 	
-	sep_cuda_cmprop(pptr, mptr);
-	sep_cuda_copy(pptr, 'm', 'h');
+	sep_cuda_cmprop(pptr, mptr); // Calculations done and saved on host
+	sep_cuda_copy(pptr, 'm', 'h'); // Copy forces to host
 
 	unsigned index = sampleptr->index;
-	
 	for ( unsigned k=0; k<sampleptr->nwaves; k++ ){
 	  
 		double stressa = 0.0; double stressb = 0.0;
@@ -260,7 +259,7 @@ void sep_cuda_sample_mgh(sepcumgh *sampleptr, sepcupart *pptr, sepcusys *sptr, s
 			
 			for ( unsigned n=0; n<sampleptr->lvec; n++ ){
 				for ( unsigned nn=0; nn<sampleptr->lvec-n; nn++ ){
-				
+
 					double asqr = (sampleptr->stressa[nn][k])*(sampleptr->stressa[nn+n][k]);
 					double bsqr = (sampleptr->stressb[nn][k])*(sampleptr->stressb[nn+n][k]);
 					
@@ -294,7 +293,35 @@ void sep_cuda_sample_mgh(sepcumgh *sampleptr, sepcupart *pptr, sepcusys *sptr, s
 	
 		sampleptr->index = 0;
 	}
+
 }
 
+/*
+sepcumsacf *sep_cuda_sample_msacf_init(unsigned lvec, double dtsample){
+
+	sepcumsacf *sampleptr = (sepcumsacf *)malloc(sizeof(sepcumsacf));
+	if ( sampleptr==NULL )  sep_cuda_mem_error();
+
+	sampleptr->lvec = lvec;
+
+	sampleptr->stress = (double *)malloc(sizeof(double));
+	sampleptr->corr = (double *)malloc(sizeof(double));
+
+	if ( sampleptr->corr==NULL || sampleptr->stress==NULL ) sep_cuda_mem_error();
+
+	for ( unsigned n=0; n<lvec; n++ ) sampleptr->corr[n] = 0.0;
+
+	return sampleptr;
+}
+
+void sep_cuda_sample_msacf_free(sepcumsacf *sampleptr){
+
+	free(sampleptr->stress); free(sampleptr->corr); 
+	
+	free(sampleptr);
+
+}
+
+*/
 
 

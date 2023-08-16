@@ -56,8 +56,9 @@ void sep_cuda_copy(sepcupart *ptr, char opt_quantity, char opt_direction) {
 			else if ( opt_quantity == 'l' )
 				cudaMemcpy(ptr->hx0, ptr->dx0, nbytes, cudaMemcpyDeviceToHost);
 			else if ( opt_quantity == 'm' ){
-				nbytes = ptr->sptr->mptr->nmols*sizeof(float3);
-				cudaMemcpy(ptr->sptr->mptr->hf, ptr->sptr->mptr->df, nbytes, cudaMemcpyDeviceToHost);
+				unsigned nmols = ptr->sptr->mptr->nmols;
+				nbytes = nmols*nmols*sizeof(float3);
+				cudaMemcpy(ptr->sptr->mptr->hfij, ptr->sptr->mptr->dfij, nbytes, cudaMemcpyDeviceToHost);
 			}
 			else {
 				fprintf(stderr, "Invalid opt_quantity");
@@ -75,7 +76,9 @@ void sep_cuda_copy(sepcupart *ptr, char opt_quantity, char opt_direction) {
 	
 }
 
-void sep_cuda_set_molprop_on(sepcusys *sptr) { sptr->molprop = true; }
+void sep_cuda_set_molprop_on(sepcusys *sptr, unsigned isample) { 
+	sptr->molprop = true; sptr->molpropinterval = isample; 
+}
 
 void sep_cuda_copy_energies(sepcusys *sptr){
 	
@@ -395,6 +398,17 @@ __global__ void sep_cuda_reset_mol(float3 *force, unsigned nmol){
 	}
 }
 
+__global__ void sep_cuda_reset_mol_fij(float3 *force, unsigned nmol){
+
+	unsigned i = blockDim.x * blockIdx.x + threadIdx.x;
+
+	if ( i < nmol ){
+		for ( unsigned j=0; j<nmol; j++ )
+			force[i*nmol+j].x = force[i*nmol+j].y = force[i*nmol+j].z = 0.0f;
+	}
+}
+
+
 // Wrapper/interface functions
 void sep_cuda_force_lattice(sepcupart *pptr, const char type, float springConstant){
 	const int nb = pptr->nblocks; 
@@ -414,8 +428,12 @@ void sep_cuda_reset_iteration(sepcupart *pptr, sepcusys *sptr){
 	sep_cuda_reset<<<nb,nt>>>
 			(pptr->df, pptr->epot, pptr->press, pptr->sumpress, sptr->denergies, pptr->npart);
 
-	if ( sptr->molprop )	
+	if ( sptr->molprop ){	
 		sep_cuda_reset_mol<<<nb,nt>>>(sptr->mptr->df, sptr->mptr->nmols);
+		sep_cuda_reset_mol_fij<<<nb,nt>>>(sptr->mptr->dfij, sptr->mptr->nmols);
+	}
+
+	sptr->iteration ++;
 
 	cudaDeviceSynchronize();
 

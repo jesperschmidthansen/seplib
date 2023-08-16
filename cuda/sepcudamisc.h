@@ -18,7 +18,7 @@ void sep_cuda_get_pressure(double *npress, double *shearpress, sepcupart *aptr);
 float sep_cuda_eval_momentum(float *momentum, sepcupart *aptr);
 void sep_cuda_reset_momentum(sepcupart *aptr);
 bool sep_cuda_logrem(unsigned n, int base);
-void sep_cuda_set_molprop_on(sepcusys *sptr);
+void sep_cuda_set_molprop_on(sepcusys *sptr, unsigned isample);
 float sep_cuda_wrap_host(float x, float lbox);
 
 /* Helper devince functions - should be calable from all files using the compiler arg. -rdc=true*/
@@ -39,6 +39,7 @@ __global__  void sep_cuda_setvalue(float *variable, float value);
 __global__ void sep_cuda_reset(float4 *force, float *epot, float4 *press, float4 *sumpress, float3 *energies, unsigned npart);
 
 __global__ void sep_cuda_reset_mol(float3 *force, unsigned nmol);
+__global__ void sep_cuda_reset_mol_fij(float3 *force, unsigned nmol);
 
 __global__ void sep_cuda_printvalue(float *value);
 

@@ -25,6 +25,7 @@ typedef struct _sepcumol {
 	float3 *hx, *dx;  /** Centre of mass */
 	float3 *hv, *dv;  /** Centre of mass velocity*/
 	float *masses;    /** Molecular masses (host only) */
+	float3 *hfij, *dfij; /** Config. part of pressure tensor */
 } sepcumol;
 
 
@@ -42,6 +43,7 @@ void sep_cuda_free_mols(sepcumol *mptr);
 void sep_cuda_free_dihedrals(sepcumol *mptr);
 
 void sep_cuda_cmprop(sepcupart *pptr, sepcumol *mptr);
+void sep_cuda_mol_calc_molpress(double *P, sepcupart *pptr,  sepcumol *mptr);
 
 // Kernels
 __global__ void sep_cuda_bond_harmonic(unsigned int *blist, unsigned nbonds, float3 bondspec, 

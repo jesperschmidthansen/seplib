@@ -123,6 +123,11 @@ void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file){
 	if ( cudaMallocHost((void **)&(mptr->masses), mptr->nmols*sizeof(float)) 
 			== cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
+	
+	nbytes = mptr->nmols*mptr->nmols*sizeof(float3);
+	if ( cudaMalloc((void **)&(mptr->dfij),nbytes) == cudaErrorMemoryAllocation || 
+		 cudaMallocHost((void **)&(mptr->hfij),nbytes) == cudaErrorMemoryAllocation )
+		sep_cuda_mem_error();
 
 	// Now sys structure can access molecular info
 	pptr->sptr->mptr=mptr;
@@ -312,7 +317,8 @@ void sep_cuda_free_bonds(sepcumol *mptr){
 	cudaFreeHost(mptr->hf);	cudaFree(mptr->df);
 	cudaFreeHost(mptr->hv);	cudaFree(mptr->dv);
 	cudaFreeHost(mptr->hx);	cudaFree(mptr->dx);
-	
+	cudaFreeHost(mptr->hfij); cudaFree(mptr->dfij);
+
 	cudaFreeHost(mptr->masses);
 }
 
@@ -660,3 +666,49 @@ void sep_cuda_cmprop(sepcupart *pptr, sepcumol *mptr){
 	}
 
 }
+
+
+
+void sep_cuda_mol_calc_molpress(double *P, sepcupart *pptr, sepcumol *mptr){
+
+	sep_cuda_cmprop(pptr, mptr); // Calculations done and saved on host
+	sep_cuda_copy(pptr, 'm', 'h'); // Copy molecular forces to host
+	unsigned nmols = mptr->nmols;
+
+	double Pkin[3][3]={0.0f};
+	for ( unsigned m=0; m<nmols; m++ ){
+		Pkin[0][0] += mptr->masses[m]*mptr->hv[m].x*mptr->hv[m].x;
+		Pkin[0][1] += mptr->masses[m]*mptr->hv[m].x*mptr->hv[m].y;
+		Pkin[0][2] += mptr->masses[m]*mptr->hv[m].x*mptr->hv[m].z;
+
+		Pkin[1][0] += mptr->masses[m]*mptr->hv[m].y*mptr->hv[m].x;
+		Pkin[1][1] += mptr->masses[m]*mptr->hv[m].y*mptr->hv[m].y;
+		Pkin[1][2] += mptr->masses[m]*mptr->hv[m].y*mptr->hv[m].z;
+
+		Pkin[2][0] += mptr->masses[m]*mptr->hv[m].z*mptr->hv[m].x;
+		Pkin[2][1] += mptr->masses[m]*mptr->hv[m].z*mptr->hv[m].y;
+		Pkin[2][2] += mptr->masses[m]*mptr->hv[m].z*mptr->hv[m].z;
+	}
+
+	double Ppot[3][3]={0.0f};
+	for ( unsigned m=0; m<nmols-1; m++ ){ 	
+		for ( unsigned n=m+1; n<nmols; n++ ){
+			float x = mptr->hx[m].x - mptr->hx[n].x; x = sep_cuda_wrap_host(x, pptr->sptr->lbox.x);
+			float y = mptr->hx[m].y - mptr->hx[n].y; y = sep_cuda_wrap_host(y, pptr->sptr->lbox.y);
+			float z = mptr->hx[m].z - mptr->hx[n].z; z = sep_cuda_wrap_host(z, pptr->sptr->lbox.z);
+
+			Ppot[0][0] += x*mptr->hfij[m*nmols+n].x; Ppot[0][1] += x*mptr->hfij[m*nmols+n].y; Ppot[0][2] += x*mptr->hfij[m*nmols+n].z; 
+			Ppot[1][0] += y*mptr->hfij[m*nmols+n].x; Ppot[1][1] += y*mptr->hfij[m*nmols+n].y; Ppot[1][2] += y*mptr->hfij[m*nmols+n].z;
+			Ppot[2][0] += z*mptr->hfij[m*nmols+n].x; Ppot[2][1] += z*mptr->hfij[m*nmols+n].y; Ppot[2][2] += z*mptr->hfij[m*nmols+n].z;
+		}
+	}
+	
+
+	double volume = pptr->sptr->lbox.x*pptr->sptr->lbox.y*pptr->sptr->lbox.z;
+	P[0] = (Pkin[0][0]+Ppot[0][0])/volume;  P[1] = (Pkin[0][1]+Ppot[0][1])/volume; P[2] = (Pkin[0][2]+Ppot[0][2])/volume;
+	P[3] = (Pkin[1][0]+Ppot[1][0])/volume;  P[4] = (Pkin[1][1]+Ppot[1][1])/volume; P[5] = (Pkin[1][2]+Ppot[1][2])/volume;
+	P[6] = (Pkin[2][0]+Ppot[2][0])/volume;  P[7] = (Pkin[2][1]+Ppot[2][1])/volume; P[8] = (Pkin[2][2]+Ppot[2][2])/volume;
+
+}
+
+

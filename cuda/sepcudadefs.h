@@ -67,7 +67,8 @@ typedef struct _sepcusys {
 	// Simulation details
 	float dt;
 	float skin;
-	
+	long iteration; 
+
 	float *dalpha; // On device <- what is this....? 
 	int *dupdate;  // Neighbourlist update? On device 
 
@@ -77,6 +78,7 @@ typedef struct _sepcusys {
 	float temp;
 	
 	bool molprop;
+	unsigned molpropinterval;
 
 	// Data exchange
 	struct _sepcupart *pptr;

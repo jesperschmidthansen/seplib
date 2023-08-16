@@ -19,10 +19,9 @@ int main(void){
 	
 	sptr->dt = 0.0005;
 
-	sepcumgh *sampler = sep_cuda_sample_mgh_init(sptr, 200, 5, 10*sptr->dt);
-	sep_cuda_set_molprop_on(sptr);
+	sep_cuda_set_molprop_on(sptr, 10);
 
-	int nloops = 1000000; int counter = 0; char filestr[100];
+	int nloops = 10000000; int counter = 0; char filestr[100];
 	for ( int n=0; n<nloops; n++ ){
 	
 		sep_cuda_reset_iteration(aptr, sptr);
@@ -40,21 +39,24 @@ int main(void){
 		sep_cuda_thermostat_nh(aptr, sptr, 3.86, 0.1);
 		sep_cuda_integrate_leapfrog(aptr, sptr);
 	
-		if ( n%10==0 )
-			sep_cuda_sample_mgh(sampler, aptr, sptr, mptr);
+		if ( n%10==0 ){
+			double molpress[9];
+			sep_cuda_mol_calc_molpress(&molpress[0], aptr,  mptr);
+			for ( int k=0; k<9; k++ ) printf("%f ", molpress[k]);
+			printf("\n");
+		}
 	
+		/*
 		if ( n%1000==0 ){
 			sprintf(filestr, "molsim-%05d.xyz", counter);
 			sep_cuda_save_xyz(aptr, filestr);
 			
 			counter ++;
 		}
-		
+		*/
 	}
 
 	sep_cuda_save_xyz(aptr, "test.xyz");
-
-	sep_cuda_sample_mgh_free(sampler);
 
 	sep_cuda_free_memory(aptr, sptr);
 	

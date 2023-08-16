@@ -5,7 +5,8 @@
 
 bool sep_cuda_check_neighblist(sepcupart *ptr, float maxdist){
 		
-	sep_cuda_sumdistance<<<ptr->nblocks,ptr->nthreads>>>(&(ptr->dsumdist), ptr->ddist, maxdist, ptr->npart);
+	sep_cuda_sumdistance<<<ptr->nblocks,ptr->nthreads>>>
+		(&(ptr->dsumdist), ptr->ddist, maxdist, ptr->npart);
 	cudaDeviceSynchronize();
 	
 	float sumdr=0.0f;
@@ -438,8 +439,8 @@ __global__ void sep_cuda_sf(float cf, int *neighblist, float4 *pos, float4 *vel,
 
 // Molecular force calculations (for pressure etc)
 __global__ void sep_cuda_calc_molforce(float3 *mforce,  const char type1, const char type2, float3 params, float4 *pos, 
-									int *neighblist,  unsigned maxneighb, float4 *force, 
-									float3 lbox, int *molindex, const unsigned npart) {
+										int *neighblist,  unsigned maxneighb, float4 *force, 
+										float3 lbox, int *molindex, unsigned nmol, const unsigned npart) {
 
 
 	int pidx = blockDim.x * blockIdx.x + threadIdx.x;
@@ -459,7 +460,7 @@ __global__ void sep_cuda_calc_molforce(float3 *mforce,  const char type1, const 
 			
 		float mpx = __ldg(&pos[pidx].x); float mpy = __ldg(&pos[pidx].y); float mpz = __ldg(&pos[pidx].z);
 				
-		float Fx = 0.0f; float Fy = 0.0f; float Fz = 0.0f; 
+	//	float Fx=0.0f; float Fy = 0.0f; float Fz = 0.0f; 
 
 		int n = 0;
 		while ( neighblist[n+offset] != -1 ){
@@ -482,22 +483,30 @@ __global__ void sep_cuda_calc_molforce(float3 *mforce,  const char type1, const 
 					float rri = sigma*sigma/distSqr; 
 					float rri3 = rri*rri*rri;
 					float ft = 48.0*epsilon*rri3*(rri3 - 0.5)*rri;
-				
-					Fx += ft*dx; Fy += ft*dy; Fz += ft*dz;
+			
+					unsigned offset = molidx*nmol + jmolidx;
+					float Fx = ft*dx; float Fy = ft*dy; float Fz = ft*dz;
+					
+					atomicAdd(&mforce[offset].x, Fx);
+					atomicAdd(&mforce[offset].y, Fy);
+					atomicAdd(&mforce[offset].z, Fz);
+
+					//Fx += ft*dx; Fy += ft*dy; Fz += ft*dz;
 				}
 			}
 			
 			n++;
 		}
-		atomicAdd(&mforce[molidx].x, Fx);
-		atomicAdd(&mforce[molidx].y, Fy);
-		atomicAdd(&mforce[molidx].z, Fz);
+//		atomicAdd(&mforce[molidx].x, Fx);
+//		atomicAdd(&mforce[molidx].y, Fy);
+//		atomicAdd(&mforce[molidx].z, Fz);
 	}
 		
 }
 
 __global__ void sep_cuda_calc_molforce(float3 *mforce, float cf, int *neighblist, float4 *pos, float4 *vel, 
-										 unsigned maxneighb, int *molindex, float3 lbox, const unsigned npart){
+										 unsigned maxneighb, int *molindex, unsigned nmols, 
+										 float3 lbox, const unsigned npart){
 
 	__const__ int pidx = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -513,8 +522,9 @@ __global__ void sep_cuda_calc_molforce(float3 *mforce, float cf, int *neighblist
 		float mpx = __ldg(&pos[pidx].x); 
 		float mpy = __ldg(&pos[pidx].y); 
 		float mpz = __ldg(&pos[pidx].z);
-				
-		float Fx = 0.0; float Fy = 0.0; float Fz = 0.0; 		
+		
+		//Force contribution to mol from particule			
+	//		float Fx = 0.0; float Fy = 0.0; float Fz = 0.0; 		
 		
 		int n = 0;
 		while ( neighblist[n+offset] != -1 ){
@@ -534,14 +544,22 @@ __global__ void sep_cuda_calc_molforce(float3 *mforce, float cf, int *neighblist
 				float dist = sqrtf(distSqr); 
 				float ft = zizj*(1.0/distSqr - icf2)/dist; 
 				
-				Fx += ft*dx; Fy += ft*dy; Fz += ft*dz;
+				unsigned offset = nmols*molidx + jmolidx;		
+				float Fx = ft*dx; float Fy = ft*dy; float Fz = ft*dz;
+
+				atomicAdd(&mforce[offset].x, Fx);
+				atomicAdd(&mforce[offset].y, Fy);
+				atomicAdd(&mforce[offset].z, Fz);
 			}
 
 			n++;
 		}
+
+		/*
 		atomicAdd(&mforce[molidx].x, Fx);
 		atomicAdd(&mforce[molidx].y, Fy);
 		atomicAdd(&mforce[molidx].z, Fz);
+		*/
 	}	
 		
 }
@@ -559,12 +577,11 @@ void sep_cuda_force_lj(sepcupart *pptr, const char types[], float params[3]){
 		(types[0], types[1], ljparams, pptr->neighblist, pptr->dx, pptr->df,  
 				pptr->epot, pptr->press, pptr->maxneighb, pptr->lbox, pptr->npart);
 
-	if ( pptr->sptr->molprop ){
-		sep_cuda_calc_molforce<<<nb,nt>>>(pptr->sptr->mptr->df, types[0], types[1], ljparams, 
+	if ( pptr->sptr->molprop && pptr->sptr->iteration%pptr->sptr->molpropinterval==0 ){
+		sep_cuda_calc_molforce<<<nb,nt>>>(pptr->sptr->mptr->dfij, types[0], types[1], ljparams, 
 					pptr->dx, pptr->neighblist, pptr->maxneighb, pptr->df, 
-					pptr->sptr->lbox, pptr->dmolindex, pptr->sptr->npart);
+					pptr->sptr->lbox, pptr->dmolindex, pptr->sptr->mptr->nmols, pptr->sptr->npart);
 	}
-
 
 	cudaDeviceSynchronize();
 
@@ -577,7 +594,8 @@ const int nb = pptr->nblocks;
 	float3 ljparams = make_float3(params[0],params[1],params[2]);
 	
 	sep_cuda_lj<<<nb, nt>>>
-		(ljparams, pptr->neighblist, pptr->dx, pptr->df, pptr->epot, pptr->press, pptr->maxneighb, pptr->lbox, pptr->npart);
+		(ljparams, pptr->neighblist, pptr->dx, pptr->df, pptr->epot, 
+		 				pptr->press, pptr->maxneighb, pptr->lbox, pptr->npart);
 		
 	cudaDeviceSynchronize();
 
@@ -607,9 +625,10 @@ void sep_cuda_force_sf(sepcupart *pptr, const float cf){
 		(cf, pptr->neighblist, pptr->dx, pptr->dv, pptr->df, pptr->epot, 
 											pptr->press, pptr->maxneighb, pptr->lbox, pptr->npart);
 
-	if ( pptr->sptr->molprop ){
-		sep_cuda_calc_molforce<<<nb, nt>>>(pptr->sptr->mptr->df, cf, pptr->neighblist, pptr->dx, pptr->dv, 
-										 pptr->maxneighb, pptr->dmolindex, pptr->lbox, pptr->npart);
+	if ( pptr->sptr->molprop && pptr->sptr->iteration%pptr->sptr->molpropinterval==0 ){
+		sep_cuda_calc_molforce<<<nb, nt>>>(pptr->sptr->mptr->dfij, cf, pptr->neighblist, pptr->dx, pptr->dv, 
+										 pptr->maxneighb, pptr->dmolindex, pptr->sptr->mptr->nmols, 
+										 pptr->lbox, pptr->npart);
 	}
 
 	cudaDeviceSynchronize();
@@ -626,7 +645,8 @@ void sep_cuda_update_neighblist(sepcupart *pptr, sepcusys *sptr, float maxcutoff
 	}
 	else if ( pptr->hexclusion_rule == SEP_CUDA_EXCL_MOLECULE ) {
 		sep_cuda_build_neighblist<<<nb, nt>>>
-			(pptr->neighblist, pptr->ddist, pptr->dx, pptr->dmolindex, sptr->skin+maxcutoff, pptr->lbox, pptr->maxneighb,pptr->npart);
+			(pptr->neighblist, pptr->ddist, pptr->dx, pptr->dmolindex, sptr->skin+maxcutoff, 
+			 												pptr->lbox, pptr->maxneighb,pptr->npart);
 	}
 	else {
 		fprintf(stderr, "Exclusion rule invalid");
