@@ -159,42 +159,43 @@ __global__ void sep_cuda_build_neighblist(int *neighlist, float *dist, float4 *p
 		#pragma unroll	
 		for ( int n=0; n<nneighmax; n++ ) neighlist[arrayOffset + n] = -1; //<- this should be optimized 
 		
-		// Reset the distance traveled since last update
+		// Reset the distance travelled since last update - in danger zone
 		dist[pidx] = 0.0f;
 		
 		int shift = 0;
-	for ( int tile = 0; tile < gridDim.x; tile++ ) {
+		for ( int tile = 0; tile < gridDim.x; tile++ ) {
 
-		for ( int j = 0; j < SEP_CUDA_NTHREADS; j++ ) {
-			int idxj = tile*blockDim.x + j;
-			
-			if ( idxj >= npart )  break;
-			
-			if ( moli == molindex[idxj] ) continue;
-			
-			float dx = mpx - p[idxj].x; dx = sep_cuda_wrap(dx, lbox.x);
-			float dy = mpy - p[idxj].y; dy = sep_cuda_wrap(dy, lbox.y);
-			float dz = mpz - p[idxj].z; dz = sep_cuda_wrap(dz, lbox.z);
-			
-			float distSqr = dx*dx + dy*dy + dz*dz;
-
-			if ( distSqr < 2.0*FLT_EPSILON ) continue; // Self contribution
-			
-			if ( distSqr < cfsqr ) {
-					
-				if ( shift < nneighmax )
-					neighlist[arrayOffset + shift] = idxj;
-				else if ( shift >= nneighmax ) {
-					printf("Neighbour list generation failed\n");
-					return;
-				}	
+			for ( int j = 0; j < SEP_CUDA_NTHREADS; j++ ) {
+				int idxj = tile*blockDim.x + j;
 				
-				shift++;
+				if ( idxj >= npart )  break;
+				
+				if ( moli == molindex[idxj] ) continue;
+				
+				float dx = mpx - p[idxj].x; dx = sep_cuda_wrap(dx, lbox.x);
+				float dy = mpy - p[idxj].y; dy = sep_cuda_wrap(dy, lbox.y);
+				float dz = mpz - p[idxj].z; dz = sep_cuda_wrap(dz, lbox.z);
+				
+				float distSqr = dx*dx + dy*dy + dz*dz;
+
+				if ( distSqr < 2.0*FLT_EPSILON ) continue; // Self contribution
+				
+				if ( distSqr < cfsqr ) {
+						
+					if ( shift < nneighmax )
+						neighlist[arrayOffset + shift] = idxj;
+					else if ( shift >= nneighmax ) {
+						printf("Neighbour list generation failed\n");
+						return;
+					}	
+					
+					shift++;
+				}
 			}
+			// __syncthreads();
 		}
-		// __syncthreads();
 	}
-}
+
 }
 
 /* Pair interactions - types specified */
@@ -269,52 +270,52 @@ __global__ void sep_cuda_lj(float3 params, int *neighblist, float4 *pos, float4 
 						float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart){
 
 
-int pidx = blockDim.x * blockIdx.x + threadIdx.x;
+	int pidx = blockDim.x * blockIdx.x + threadIdx.x;
 
-if ( pidx < npart ) {
-	
-	float sigma = params.x; 
-	float epsilon = params.y; 
-	float cf = params.z; //__ldg does not work..?
-	float cfsqr = cf*cf;
-	float Epot_shift = 4.0*epsilon*(powf(sigma/cf, 12.) - powf(sigma/cf,6.));
-	
-	int offset = pidx*maxneighb;
+	if ( pidx < npart ) {
 		
-	float mpx = __ldg(&pos[pidx].x); float mpy = __ldg(&pos[pidx].y); float mpz = __ldg(&pos[pidx].z);
+		float sigma = params.x; 
+		float epsilon = params.y; 
+		float cf = params.z; //__ldg does not work..?
+		float cfsqr = cf*cf;
+		float Epot_shift = 4.0*epsilon*(powf(sigma/cf, 12.) - powf(sigma/cf,6.));
+		
+		int offset = pidx*maxneighb;
 			
-	float Fx = 0.0f; float Fy = 0.0f; float Fz = 0.0f; 
-	float Epot = 0.0f; 
-	float4 mpress; mpress.x = mpress.y = mpress.z = mpress.w = 0.0f;
-	int n = 0;
-	while ( neighblist[n+offset] != -1 ){
-		int pjdx = neighblist[n+offset];
-			
-		float dx = mpx - pos[pjdx].x; dx = sep_cuda_wrap(dx, lbox.x);
-		float dy = mpy - pos[pjdx].y; dy = sep_cuda_wrap(dy, lbox.y);
-		float dz = mpz - pos[pjdx].z; dz = sep_cuda_wrap(dz, lbox.z);
+		float mpx = __ldg(&pos[pidx].x); float mpy = __ldg(&pos[pidx].y); float mpz = __ldg(&pos[pidx].z);
+				
+		float Fx = 0.0f; float Fy = 0.0f; float Fz = 0.0f; 
+		float Epot = 0.0f; 
+		float4 mpress; mpress.x = mpress.y = mpress.z = mpress.w = 0.0f;
+		int n = 0;
+		while ( neighblist[n+offset] != -1 ){
+			int pjdx = neighblist[n+offset];
+				
+			float dx = mpx - pos[pjdx].x; dx = sep_cuda_wrap(dx, lbox.x);
+			float dy = mpy - pos[pjdx].y; dy = sep_cuda_wrap(dy, lbox.y);
+			float dz = mpz - pos[pjdx].z; dz = sep_cuda_wrap(dz, lbox.z);
 
-		float distSqr = dx*dx + dy*dy + dz*dz;
+			float distSqr = dx*dx + dy*dy + dz*dz;
 
-		if ( distSqr < cfsqr ) {
-			float rri = sigma*sigma/distSqr; 
-			float rri3 = rri*rri*rri;
-			float ft =  48.0*epsilon*rri3*(rri3 - 0.5)*rri; //pow( sqrtf(1.0/distSqr), 11.0 ); //
+			if ( distSqr < cfsqr ) {
+				float rri = sigma*sigma/distSqr; 
+				float rri3 = rri*rri*rri;
+				float ft =  48.0*epsilon*rri3*(rri3 - 0.5)*rri; //pow( sqrtf(1.0/distSqr), 11.0 ); //
+				
+				Fx += ft*dx; Fy += ft*dy; Fz += ft*dz;
+				Epot += 0.5*(4.0*epsilon*rri3*(rri3 - 1.0) - Epot_shift);
+				mpress.x += dx*ft*dx + dy*ft*dy + dz*ft*dz; 
+				mpress.y += dx*ft*dy; mpress.z += dx*ft*dz; mpress.w += dy*ft*dz;
+			}
 			
-			Fx += ft*dx; Fy += ft*dy; Fz += ft*dz;
-			Epot += 0.5*(4.0*epsilon*rri3*(rri3 - 1.0) - Epot_shift);
-			mpress.x += dx*ft*dx + dy*ft*dy + dz*ft*dz; 
-			mpress.y += dx*ft*dy; mpress.z += dx*ft*dz; mpress.w += dy*ft*dz;
+			n++;
 		}
-		
-		n++;
+			
+		force[pidx].x += Fx; force[pidx].y += Fy; force[pidx].z += Fz;
+		epot[pidx] += Epot; 
+		press[pidx].x += mpress.x;
+		press[pidx].y += mpress.y; press[pidx].z += mpress.z; press[pidx].w += mpress.w; 
 	}
-		
-	force[pidx].x += Fx; force[pidx].y += Fy; force[pidx].z += Fz;
-	epot[pidx] += Epot; 
-	press[pidx].x += mpress.x;
-	press[pidx].y += mpress.y; press[pidx].z += mpress.z; press[pidx].w += mpress.w; 
-}
 }
 
 

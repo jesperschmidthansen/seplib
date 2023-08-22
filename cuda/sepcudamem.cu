@@ -126,7 +126,8 @@ sepcupart* sep_cuda_load_xyz(const char *xyzfile){
 	ptr->sptr = NULL;
 
 	fscanf(fin, "%f %f %f\n", &(ptr->lbox.x), &(ptr->lbox.y), &(ptr->lbox.z));
-	
+
+	// type, position, velocity, mass, charge	
 	for ( unsigned n=0; n<npart; n++ ) {
 		fscanf(fin, "%c %f %f %f %f %f %f %f %f\n", 
 			   &(ptr->ht[n]), &(ptr->hx[n].x),&(ptr->hx[n].y),&(ptr->hx[n].z), 
@@ -174,6 +175,8 @@ sepcusys *sep_cuda_sys_setup(sepcupart *pptr){
 
 	sptr->molprop = false;
 	sptr->molpropinterval = 0;
+
+	sptr->cmflag = false;
 
 	sptr->pptr = pptr; sptr->mptr = NULL;
 	pptr->sptr = sptr;

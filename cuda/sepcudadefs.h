@@ -18,6 +18,8 @@
 #define SEP_CUDA_EXCL_BONDS 1
 #define SEP_CUDA_EXCL_MOLECULE 2
 
+#define SEP_CUDA_MAXNUAU 100
+
 typedef struct _sepcupart {
 	
 	float4 *hx, *dx; //x,y,z,mass
@@ -79,6 +81,8 @@ typedef struct _sepcusys {
 	
 	bool molprop;
 	unsigned molpropinterval;
+
+	bool cmflag;
 
 	// Data exchange
 	struct _sepcupart *pptr;

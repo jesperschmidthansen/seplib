@@ -30,8 +30,31 @@ FILE *sep_cuda_set_file_pointer(FILE *fptr, const char *section){
 	return NULL;
 }
 
+void sep_cuda_make_atomslist(sepcumol *mptr, sepcupart *pptr){
 
-void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file){
+	unsigned nmols = mptr->nmols;
+	unsigned npart = pptr->sptr->npart;
+
+	int *offset = (int *)malloc(sizeof(int)*nmols);
+	if ( offset==NULL ) sep_cuda_mem_error();
+
+	// Initializing
+	for ( unsigned m=0; m<nmols; m++ ) offset[m]=0;
+	for ( unsigned n=0; n<nmols*SEP_CUDA_MAXNUAU; n++ ) mptr->alist[n] = -1;
+
+	for ( unsigned n=0; n<npart; n++ ){
+		int molidx = pptr->hmolindex[n];
+		if ( molidx > -1 ){
+	    	unsigned idx = SEP_CUDA_MAXNUAU*molidx + offset[molidx];
+			mptr->alist[idx]=n;
+			offset[molidx]++;		
+		}
+	}
+
+	free(offset);
+}
+
+void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file, const char opt){
 	const char section[] = {'[', ' ', 'b', 'o', 'n', 'd', 's', ' ', ']','\n', '\0'};
 	char line[256];
 	fpos_t pos_file;
@@ -97,10 +120,12 @@ void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file){
 	(mptr->nmols)++; 
 	mptr->nbondblocks = mptr->nbonds/SEP_CUDA_NTHREADS + 1 ;
 	
-	fprintf(stdout, "Succesfully read 'bond' section in file %s -> ", file);
-    fprintf(stdout, "Found %d molecule(s) and %d bond(s)\n", mptr->nmols, mptr->nbonds);
-	fprintf(stdout, "Copying to device\n");
-	
+	if ( opt=='v' ){	
+		fprintf(stdout, "Succesfully read 'bond' section in file %s -> ", file);
+    	fprintf(stdout, "Found %d molecule(s) and %d bond(s)\n", mptr->nmols, mptr->nbonds);
+		fprintf(stdout, "Copying to device\n");
+	}
+
 	size_t nbytes =  3*(mptr->nbonds)*sizeof(unsigned int);
 	if ( cudaMalloc((void **)&(mptr->dblist),nbytes) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
@@ -110,14 +135,22 @@ void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file){
 	nbytes = pptr->npart_padding*sizeof(int);
 	cudaMemcpy(pptr->dmolindex, pptr->hmolindex, nbytes, cudaMemcpyHostToDevice);
 
+	nbytes =  SEP_CUDA_MAXNUAU*(mptr->nmols)*sizeof(int);
+	if ( cudaMallocHost((void **)&(mptr->alist),nbytes) == cudaErrorMemoryAllocation )
+		sep_cuda_mem_error();
+
+	sep_cuda_make_atomslist(mptr, pptr);
+
 	// Allocating for molecular force, positions, and velocities
 	nbytes = mptr->nmols*sizeof(float3);
 	if ( cudaMalloc((void **)&(mptr->df),nbytes) == cudaErrorMemoryAllocation || 
 		 cudaMallocHost((void **)&(mptr->hf),nbytes) == cudaErrorMemoryAllocation ||
-		 cudaMalloc((void **)&(mptr->dx),nbytes) == cudaErrorMemoryAllocation || 
+		// cudaMalloc((void **)&(mptr->dx),nbytes) == cudaErrorMemoryAllocation || 
 		 cudaMallocHost((void **)&(mptr->hx),nbytes) == cudaErrorMemoryAllocation ||
-		 cudaMalloc((void **)&(mptr->dv),nbytes) == cudaErrorMemoryAllocation || 
-		 cudaMallocHost((void **)&(mptr->hv),nbytes) == cudaErrorMemoryAllocation )
+		// cudaMalloc((void **)&(mptr->dv),nbytes) == cudaErrorMemoryAllocation || 
+		 cudaMallocHost((void **)&(mptr->hv),nbytes) == cudaErrorMemoryAllocation ||
+	 	// cudaMalloc((void **)&(mptr->dpel),nbytes) == cudaErrorMemoryAllocation || 
+		 cudaMallocHost((void **)&(mptr->hpel),nbytes) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 
 	if ( cudaMallocHost((void **)&(mptr->masses), mptr->nmols*sizeof(float)) 
@@ -134,7 +167,24 @@ void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file){
 }
 
 
-void sep_cuda_read_angles(sepcupart *pptr, sepcumol *mptr, const char *file){
+void sep_cuda_free_bonds(sepcumol *mptr){
+
+	cudaFreeHost(mptr->hblist);	cudaFree(mptr->dblist);
+
+	cudaFreeHost(mptr->hf);	cudaFree(mptr->df);
+	cudaFreeHost(mptr->hv);	//cudaFree(mptr->dv);
+	cudaFreeHost(mptr->hx);	//cudaFree(mptr->dx);
+	cudaFreeHost(mptr->hpel);	//cudaFree(mptr->dpel);
+
+	cudaFreeHost(mptr->hfij); cudaFree(mptr->dfij);
+
+	cudaFreeHost(mptr->alist);
+
+	cudaFreeHost(mptr->masses);
+}
+
+
+void sep_cuda_read_angles(sepcupart *pptr, sepcumol *mptr, const char *file, const char opt){
 	const char section[] = {'[', ' ', 'a', 'n', 'g', 'l', 'e', 's', ' ', ']','\n', '\0'};
 	char line[256];
 	fpos_t pos_file;
@@ -201,9 +251,11 @@ void sep_cuda_read_angles(sepcupart *pptr, sepcumol *mptr, const char *file){
 	// Since number of mols is one bigger than the index
 	mptr->nangleblocks = mptr->nangles/SEP_CUDA_NTHREADS + 1 ;
 	
-	fprintf(stdout, "Succesfully read 'angle' section in file %s -> ", file);
-    fprintf(stdout, "Found %d angles(s)\n", mptr->nangles);
-	
+	if ( opt=='v') {
+		fprintf(stdout, "Succesfully read 'angle' section in file %s -> ", file);
+    	fprintf(stdout, "Found %d angles(s)\n", mptr->nangles);
+	}
+
 	if ( mptr->nangles > 0 ){
 		fprintf(stdout, "Copying to device\n");
 	
@@ -220,7 +272,7 @@ void sep_cuda_read_angles(sepcupart *pptr, sepcumol *mptr, const char *file){
 }
 
 
-void sep_cuda_read_dihedrals(sepcupart *pptr, sepcumol *mptr, const char *file){
+void sep_cuda_read_dihedrals(sepcupart *pptr, sepcumol *mptr, const char *file, const char opt){
 	const char section[] = {'[', ' ', 'd', 'i', 'h', 'e', 'd', 'r', 'a', 'l', 's', ' ', ']','\n', '\0'};
 	char line[256];
 	fpos_t pos_file;
@@ -307,19 +359,6 @@ void sep_cuda_read_dihedrals(sepcupart *pptr, sepcumol *mptr, const char *file){
 		cudaDeviceSynchronize();
 	}
 	
-}
-
-
-void sep_cuda_free_bonds(sepcumol *mptr){
-
-	cudaFreeHost(mptr->hblist);	cudaFree(mptr->dblist);
-
-	cudaFreeHost(mptr->hf);	cudaFree(mptr->df);
-	cudaFreeHost(mptr->hv);	cudaFree(mptr->dv);
-	cudaFreeHost(mptr->hx);	cudaFree(mptr->dx);
-	cudaFreeHost(mptr->hfij); cudaFree(mptr->dfij);
-
-	cudaFreeHost(mptr->masses);
 }
 
 void sep_cuda_free_angles(sepcumol *mptr){
@@ -596,7 +635,7 @@ void sep_cuda_force_dihedral(sepcupart *pptr, sepcumol *mptr, int type, float pa
 	cudaDeviceSynchronize();
 
 }
-
+/*
 float sep_cuda_mol_translate_tobox(float x, float L){
 	int nL;
 
@@ -611,68 +650,151 @@ float sep_cuda_mol_translate_tobox(float x, float L){
 	
 	return x;
 }	
+*/
+void sep_cuda_mol_calc_cmprop(sepcupart *pptr, sepcumol *mptr){
 
-void sep_cuda_cmprop(sepcupart *pptr, sepcumol *mptr){
+	unsigned nmols = mptr->nmols;
+	float3 lbox = pptr->sptr->lbox;
+	float3 dr;
 
-	unsigned nmols = pptr->sptr->mptr->nmols;
-	unsigned npart = pptr->npart;
-	
 	sep_cuda_copy(pptr, 'x', 'h'); 
 	sep_cuda_copy(pptr, 'v', 'h'); 
-	sep_cuda_copy(pptr, 'c', 'h');
+
+	double *x = (double *)malloc(sizeof(double)*SEP_CUDA_MAXNUAU);
+	double *y = (double *)malloc(sizeof(double)*SEP_CUDA_MAXNUAU);
+	double *z = (double *)malloc(sizeof(double)*SEP_CUDA_MAXNUAU);
+	
+	if ( x==NULL || y==NULL || z==NULL ) sep_cuda_mem_error();
 
 	for ( unsigned m=0; m<nmols; m++) {
-		mptr->hx[m].x=0.0f;  mptr->hx[m].y=0.0f; mptr->hx[m].z=0.0f;
-		mptr->hv[m].x=0.0f;  mptr->hv[m].y=0.0f; mptr->hv[m].z=0.0f;
+        // First particle in molecule
+		int i = mptr->alist[m*SEP_CUDA_MAXNUAU]; 	
 
-		mptr->masses[m] = 0.0f;
-	}
-
-	for ( unsigned n=0; n<npart; n++ ){
-		unsigned molidx = pptr->hmolindex[n];
-	
-		double massn = pptr->hx[n].w;
-
-		mptr->hx[molidx].x += massn*(pptr->hx[n].x + pptr->hcrossings[n].x);
-		mptr->hx[molidx].y += massn*(pptr->hx[n].y + pptr->hcrossings[n].y);
-		mptr->hx[molidx].z += massn*(pptr->hx[n].z + pptr->hcrossings[n].z);
-	
-		mptr->hv[molidx].x += massn*pptr->hv[n].x;
-		mptr->hv[molidx].y += massn*pptr->hv[n].y;
-		mptr->hv[molidx].z += massn*pptr->hv[n].z;
+		if ( i > -1 ){
+			
+			x[0] = pptr->hx[i].x; y[0] = pptr->hx[i].y; z[0] = pptr->hx[i].z;	
 		
-		mptr->masses[molidx] += massn;	
-	}	
+			int n=1; 
+			while ( mptr->alist[m*SEP_CUDA_MAXNUAU+n] != -1 ){
+				int aidx = mptr->alist[m*SEP_CUDA_MAXNUAU+n];
+				
+				dr.x = pptr->hx[aidx].x - pptr->hx[aidx-1].x; dr.x = sep_cuda_wrap_host(dr.x, lbox.x);
+				dr.y = pptr->hx[aidx].y - pptr->hx[aidx-1].y; dr.y = sep_cuda_wrap_host(dr.y, lbox.y);
+				dr.z = pptr->hx[aidx].z - pptr->hx[aidx-1].z; dr.z = sep_cuda_wrap_host(dr.z, lbox.z);
 
-	float Lx = pptr->sptr->lbox.x;
-	float Ly = pptr->sptr->lbox.y;
-	float Lz = pptr->sptr->lbox.z;
+				x[n] = x[n-1] + dr.x; y[n] = y[n-1] + dr.y; z[n] = z[n-1]+dr.z;			
 
-	for ( unsigned m=0; m<nmols; m++ ){
+				n++;
+			}
 
-		mptr->hx[m].x = mptr->hx[m].x/mptr->masses[m]; 
-		mptr->hx[m].x = sep_cuda_mol_translate_tobox(mptr->hx[m].x,  Lx);
+			mptr->hx[m].x=0.0f;  mptr->hx[m].y=0.0f; mptr->hx[m].z=0.0f;
+			mptr->hv[m].x=0.0f;  mptr->hv[m].y=0.0f; mptr->hv[m].z=0.0f;
+			mptr->masses[m] = 0.0f; 
 
-		mptr->hx[m].y = mptr->hx[m].y/mptr->masses[m]; 
-		mptr->hx[m].y = sep_cuda_mol_translate_tobox(mptr->hx[m].y,  Ly);
+			for ( int ni=0; ni<n; ni++ ){
+				double mass = pptr->hx[ni+i].w;
+				mptr->hx[m].x +=  mass*x[ni]; mptr->hx[m].y += mass*y[ni]; mptr->hx[m].z += mass*z[ni];
+				
+				mptr->hv[m].x += mass*pptr->hv[ni+i].x; 
+				mptr->hv[m].y += mass*pptr->hv[ni+i].y; 
+				mptr->hv[m].z += mass*pptr->hv[ni+i].z;
 
-		mptr->hx[m].z = mptr->hx[m].z/mptr->masses[m]; 
-		mptr->hx[m].z = sep_cuda_mol_translate_tobox(mptr->hx[m].z,  Lz);
-	
-		mptr->hv[m].x = mptr->hv[m].x/mptr->masses[m];
-		mptr->hv[m].y = mptr->hv[m].y/mptr->masses[m];
-		mptr->hv[m].z = mptr->hv[m].z/mptr->masses[m];
+				mptr->masses[m] += mass;
+			}
+		
+			mptr->hx[m].x = mptr->hx[m].x/mptr->masses[m]; 
+			mptr->hx[m].x = sep_cuda_periodic_host(mptr->hx[m].x, lbox.x);
+			
+			mptr->hx[m].y = mptr->hx[m].y/mptr->masses[m]; 
+			mptr->hx[m].y = sep_cuda_periodic_host(mptr->hx[m].y, lbox.y);
 
+			mptr->hx[m].z = mptr->hx[m].z/mptr->masses[m]; 
+			mptr->hx[m].z = sep_cuda_periodic_host(mptr->hx[m].z, lbox.z);
+
+			mptr->hv[m].x = mptr->hv[m].x/mptr->masses[m];
+			mptr->hv[m].y = mptr->hv[m].y/mptr->masses[m];
+			mptr->hv[m].z = mptr->hv[m].z/mptr->masses[m];
+		}
 	}
+
+	free(x); free(y); free(z); 
+
+	pptr->sptr->cmflag = true;
+}
+
+void sep_cuda_mol_calc_dipoles(sepcupart *pptr, sepcumol *mptr){
+
+	if ( !pptr->sptr->cmflag )
+		sep_cuda_mol_calc_cmprop(pptr, mptr); // Cm prop. done and saved on host
+
+	const unsigned nmols = mptr->nmols;
+	float3 lbox = pptr->sptr->lbox;
+
+	for ( unsigned m=0; m<nmols; m++) {
+    	double sumz = 0.0;
+    	double rpos[3]={0.0, 0.0, 0.0}, rneg[3]={0.0, 0.0, 0.0};
+    	int pos_counter=0, neg_counter=0;
+
+		int n=0; 
+		do {
+        	// First particle in molecule
+			int i = mptr->alist[m*SEP_CUDA_MAXNUAU+n]; 	
+			if ( i<0 ) break;
+
+			double offset[3]= {0.0, 0.0, 0.0};
+			if ( fabs(pptr->hx[i].x - mptr->hx[m].x) > 0.5*lbox.x ){
+	  			if ( pptr->hx[i].x - mptr->hx[m].x > 0.0 ) offset[0] = -lbox.x;
+	  			else offset[0] = lbox.x;
+			}
+      		if ( fabs(pptr->hx[i].y - mptr->hx[m].y) > 0.5*lbox.y ){
+	  			if ( pptr->hx[i].y - mptr->hx[m].y > 0.0 ) offset[1] = -lbox.y;
+	  			else offset[1] = lbox.y;
+			}
+      		if ( fabs(pptr->hx[i].z - mptr->hx[m].z) > 0.5*lbox.z ){
+	  			if ( pptr->hx[i].z - mptr->hx[m].z > 0.0 ) offset[2] = -lbox.z;
+	  			else offset[2] = lbox.z;
+			}
+      		
+      		if ( pptr->hv[i].w > 0.0 ){
+				rpos[0] += pptr->hx[i].x + offset[0];
+				rpos[1] += pptr->hx[i].y + offset[1];
+				rpos[2] += pptr->hx[i].z + offset[2];
+				sumz += pptr->hv[i].w;
+				pos_counter++;
+      		}		
+      		else if ( pptr->hv[i].w < 0.0 ){
+				rneg[0] += pptr->hx[i].x + offset[0];
+				rneg[1] += pptr->hx[i].y + offset[1];
+				rneg[2] += pptr->hx[i].z + offset[2];
+
+				neg_counter++;
+		    }
+		  	n++;
+		} while (1); // end do
+	 	
+		double d[3];
+ 		if ( neg_counter > 0 && pos_counter > 0 )
+      		for ( int k=0; k<3; k++ ) d[k] = rpos[k]/pos_counter - rneg[k]/neg_counter;
+
+		mptr->hpel[m].x = sumz*d[0]; mptr->hpel[m].y = sumz*d[1]; mptr->hpel[m].z = sumz*d[2];
+
+	} // end nmol
+	
 
 }
 
-
-
 void sep_cuda_mol_calc_molpress(double *P, sepcupart *pptr, sepcumol *mptr){
 
-	sep_cuda_cmprop(pptr, mptr); // Calculations done and saved on host
-	sep_cuda_copy(pptr, 'm', 'h'); // Copy molecular forces to host
+	if ( !pptr->sptr->molprop ) {
+		fprintf(stderr, "Mol. properties flag not set to 'on' - mol. pressure not calculated\n");
+		return;
+	}
+
+	if ( !pptr->sptr->cmflag )
+		sep_cuda_mol_calc_cmprop(pptr, mptr); // Cm prop. done and saved on host
+	
+	sep_cuda_copy(pptr, 'm', 'h');        // Copy molecular forces to host *SLOW*
+
 	unsigned nmols = mptr->nmols;
 
 	double Pkin[3][3]={0.0f};
@@ -690,6 +812,7 @@ void sep_cuda_mol_calc_molpress(double *P, sepcupart *pptr, sepcumol *mptr){
 		Pkin[2][2] += mptr->masses[m]*mptr->hv[m].z*mptr->hv[m].z;
 	}
 
+
 	double Ppot[3][3]={0.0f};
 	for ( unsigned m=0; m<nmols-1; m++ ){ 	
 		for ( unsigned n=m+1; n<nmols; n++ ){
@@ -704,11 +827,65 @@ void sep_cuda_mol_calc_molpress(double *P, sepcupart *pptr, sepcumol *mptr){
 	}
 	
 
-	double volume = pptr->sptr->lbox.x*pptr->sptr->lbox.y*pptr->sptr->lbox.z;
-	P[0] = (Pkin[0][0]+Ppot[0][0])/volume;  P[1] = (Pkin[0][1]+Ppot[0][1])/volume; P[2] = (Pkin[0][2]+Ppot[0][2])/volume;
-	P[3] = (Pkin[1][0]+Ppot[1][0])/volume;  P[4] = (Pkin[1][1]+Ppot[1][1])/volume; P[5] = (Pkin[1][2]+Ppot[1][2])/volume;
-	P[6] = (Pkin[2][0]+Ppot[2][0])/volume;  P[7] = (Pkin[2][1]+Ppot[2][1])/volume; P[8] = (Pkin[2][2]+Ppot[2][2])/volume;
+	double ivolume = 1.0/(pptr->sptr->lbox.x*pptr->sptr->lbox.y*pptr->sptr->lbox.z);
+	P[0] = (Pkin[0][0]+Ppot[0][0])*ivolume;  P[1] = (Pkin[0][1]+Ppot[0][1])*ivolume; P[2] = (Pkin[0][2]+Ppot[0][2])*ivolume;
+	P[3] = (Pkin[1][0]+Ppot[1][0])*ivolume;  P[4] = (Pkin[1][1]+Ppot[1][1])*ivolume; P[5] = (Pkin[1][2]+Ppot[1][2])*ivolume;
+	P[6] = (Pkin[2][0]+Ppot[2][0])*ivolume;  P[7] = (Pkin[2][1]+Ppot[2][1])*ivolume; P[8] = (Pkin[2][2]+Ppot[2][2])*ivolume;
+
+}
+
+double sep_cuda_mol_calc_avdipole(sepcumol *mptr){
+
+	const unsigned nmols = mptr->nmols;
+
+	double mu=0.0f;
+	for (unsigned m=0; m<nmols; m++ )
+		mu += sqrt(sep_cuda_dot_host(mptr->hpel[m]));
+
+	return mu/nmols;
 
 }
 
 
+__global__ void sep_cuda_calc_forceonmol(float3 *df, float3 *dfij, unsigned nmols){
+
+	unsigned molidx = blockDim.x * blockIdx.x + threadIdx.x;
+
+	if ( molidx < nmols ){
+		df[molidx].x = df[molidx].y = df[molidx].z = 0.0f;
+		for ( unsigned n=0; n<nmols; n++ ){
+			df[molidx].x += dfij[nmols*molidx + n].x;
+			df[molidx].y += dfij[nmols*molidx + n].y;
+			df[molidx].z += dfij[nmols*molidx + n].z;
+		}
+	}
+
+}
+
+void sep_cuda_mol_calc_forceonmol(sepcupart *pptr, sepcumol *mptr){
+	
+	const int nb = mptr->nmols/pptr->nthreads+1; 
+	const int nt = pptr->nthreads;
+
+	sep_cuda_calc_forceonmol<<<nb, nt>>>(mptr->df, mptr->dfij, mptr->nmols);
+
+}
+
+/*
+void sep_cuda_mol_calc_forceonmol(sepcupart *pptr, sepcumol *mptr){
+	unsigned n,m;
+
+	const unsigned nmols = mptr->nmols;
+	sep_cuda_copy(pptr, 'm', 'h');        // Copy molecular forces to host
+
+	for ( m=0; m<nmols; m++ ){
+		mptr->hf[m].x = mptr->hf[m].y = mptr->hf[m].z = 0.0f;
+		for ( n=0; n<nmols; n++ ) {
+			mptr->hf[m].x += mptr->hfij[n*nmols + m].x;
+			mptr->hf[m].y += mptr->hfij[n*nmols + m].y;
+			mptr->hf[m].z += mptr->hfij[n*nmols + m].z;
+		}
+	}
+
+}
+*/

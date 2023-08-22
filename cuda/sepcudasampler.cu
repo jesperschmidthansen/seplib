@@ -185,19 +185,25 @@ void sep_cuda_sample_gh(sepcugh *sampleptr, sepcupart *pptr, sepcusys *sptr){
 
 
 // The gen. hydrodynamic sampler - molecular UNDER CONSTRUCTION 
-sepcumgh* sep_cuda_sample_mgh_init(sepcusys *sysptr, int lvec, unsigned nk, double dtsample){
+sepcumgh* sep_cuda_sample_mgh_init(sepcusys *sysptr, int lvec[2], unsigned nk, double dtsample){
 	
 	sepcumgh *sptr = (sepcumgh *)malloc(sizeof(sepcumgh));
 	
-	sptr->stress = (double **)sep_cuda_matrix(lvec, nk);
 	sptr->wavevector = (double *)malloc(nk*sizeof(double));
 
-	sptr->stressa = (double **)sep_cuda_matrix(lvec, nk);
-	sptr->stressb = (double **)sep_cuda_matrix(lvec, nk);
-	
-	sptr->nwaves = nk; sptr->lvec=lvec; sptr->dtsample = dtsample;
-	
-	sptr->index = 0; sptr->nsample = 0;
+	sptr->stress = (double **)sep_cuda_matrix(lvec[0], nk);
+	sptr->stressa = (double **)sep_cuda_matrix(lvec[0], nk);
+	sptr->stressb = (double **)sep_cuda_matrix(lvec[0], nk);
+	sptr->stresslvec = lvec[0]; 
+	sptr->stressindex = 0; sptr->stressnsample = 0; 
+
+	sptr->dipole = (double **)sep_cuda_matrix(lvec[1], nk);
+	sptr->dipolea = (double **)sep_cuda_matrix(lvec[1], nk);
+	sptr->dipoleb = (double **)sep_cuda_matrix(lvec[1], nk);
+	sptr->dipolelvec = lvec[1];
+	sptr->dipoleindex = 0; sptr->dipolensample = 0;
+
+	sptr->nwaves = nk; sptr->dtsample = dtsample;
 	
 	FILE *fout = fopen("mgh-wavevectors.dat", "w");
 	if ( fout == NULL ) sep_cuda_file_error();
@@ -214,114 +220,120 @@ sepcumgh* sep_cuda_sample_mgh_init(sepcusys *sysptr, int lvec, unsigned nk, doub
 
 void sep_cuda_sample_mgh_free(sepcumgh *ptr){
 	
-	sep_cuda_free_matrix(ptr->stress, ptr->lvec);
-
 	free(ptr->wavevector);
 	
-	sep_cuda_free_matrix(ptr->stressa, ptr->lvec);
-	sep_cuda_free_matrix(ptr->stressb, ptr->lvec);
+	sep_cuda_free_matrix(ptr->stress, ptr->stresslvec);
+	sep_cuda_free_matrix(ptr->stressa, ptr->stresslvec);
+	sep_cuda_free_matrix(ptr->stressb, ptr->stresslvec);
+	
+	sep_cuda_free_matrix(ptr->dipole, ptr->dipolelvec);
+	sep_cuda_free_matrix(ptr->dipolea, ptr->dipolelvec);
+	sep_cuda_free_matrix(ptr->dipoleb, ptr->dipolelvec);
 	
 	free(ptr);
 }
 
 
-void sep_cuda_sample_mgh(sepcumgh *sampleptr, sepcupart *pptr, sepcusys *sptr, sepcumol *mptr){
-	
-	sep_cuda_cmprop(pptr, mptr); // Calculations done and saved on host
-	sep_cuda_copy(pptr, 'm', 'h'); // Copy forces to host
+void sep_cuda_print_current_corr(sepcusys *sptr, sepcumgh *sampler,  
+		double **corr, double **a, double **b, unsigned lvec, int nsample, const char *filename){
+		
+			
+	for ( unsigned k=0; k<sampler->nwaves; k++ ){
+		
+		for ( unsigned n=0; n<lvec; n++ ){
+			for ( unsigned nn=0; nn<lvec-n; nn++ ){
+				double asqr = a[nn][k]*a[nn+n][k];
+				double bsqr = b[nn][k]*b[nn+n][k];
+					
+				corr[n][k] += asqr + bsqr;
+			}	
+		}
+	}
 
-	unsigned index = sampleptr->index;
+	FILE *fout = fopen(filename, "w");
+	if ( fout == NULL ) fprintf(stderr, "Couldn't open file(s)\n");
+		
+	double volume = sptr->lbox.x*sptr->lbox.y*sptr->lbox.z;
+		
+	for ( unsigned n=0; n<lvec; n++ ){
+		double fac = 1.0/(nsample*volume*(lvec-n));
+		double t   = n*sampler->dtsample;
+	
+		fprintf(fout, "%f ", t); 
+ 
+		for ( unsigned k=0; k<sampler->nwaves; k++ ) {
+			fprintf(fout, "%f ", corr[n][k]*fac); 
+		}
+		fprintf(fout, "\n") ;
+	}
+	
+	fclose(fout); 
+	
+}
+
+void sep_cuda_sample_mgh(sepcumgh *sampleptr, sepcupart *pptr, sepcusys *sptr, sepcumol *mptr){
+
+	if ( !pptr->sptr->molprop ) {
+		fprintf(stderr, "Mol. properties flag not set to 'on' - stress correlator not calculated\n");
+		return;
+	}
+
+	if ( !sptr->cmflag ) 	
+		sep_cuda_mol_calc_cmprop(pptr, mptr); // Calculations done and saved on host
+	
+	// Forces on molecular  - wavevector depedent stress and mech. properties
+	sep_cuda_mol_calc_forceonmol(pptr, mptr);
+	sep_cuda_copy(pptr, 'M', 'h');
+
+	// Dipole moments - dielectric properties
+	sep_cuda_mol_calc_dipoles(pptr, mptr);
+
+	unsigned idxS = sampleptr->stressindex;
+	unsigned idxD = sampleptr->dipoleindex;
 	for ( unsigned k=0; k<sampleptr->nwaves; k++ ){
 	  
 		double stressa = 0.0; double stressb = 0.0;
-		
-		for ( unsigned m=0; m<mptr->nmols; m++ ){
+		double dipolea = 0.0; double dipoleb = 0.0;
 
+		for ( unsigned m=0; m<mptr->nmols; m++ ){
 			double kr = sampleptr->wavevector[k]*mptr->hx[m].y;
-			double mass = mptr->masses[m]; double fx = mptr->hf[m].x;
-			
 			double ckr = cos(kr); double skr = sin(kr);
+
+			double mass = mptr->masses[m]; double fx = mptr->hf[m].x;	
 			double velx = mptr->hv[m].x; double vely = mptr->hv[m].y;
 			
 			stressa += fx/sampleptr->wavevector[k]*ckr - mass*velx*vely*skr;
 			stressb += fx/sampleptr->wavevector[k]*skr + mass*velx*vely*ckr;			
-		}
-		
-		sampleptr->stressa[index][k] = stressa;
-		sampleptr->stressb[index][k] = stressb;
-
-	}
-	
-	(sampleptr->index)++;
-	if ( sampleptr->index == sampleptr->lvec){
-	
-	   for ( unsigned k=0; k<sampleptr->nwaves; k++ ){
 			
-			for ( unsigned n=0; n<sampleptr->lvec; n++ ){
-				for ( unsigned nn=0; nn<sampleptr->lvec-n; nn++ ){
+			if ( k==0 )	kr = 0.0;
+			else kr = sampleptr->wavevector[k-1]*mptr->hx[m].y;
 
-					double asqr = (sampleptr->stressa[nn][k])*(sampleptr->stressa[nn+n][k]);
-					double bsqr = (sampleptr->stressb[nn][k])*(sampleptr->stressb[nn+n][k]);
-					
-					sampleptr->stress[n][k] += asqr + bsqr;
-				}
-			}
+			ckr = cos(kr); skr = sin(kr);
+
+			double mui = mptr->hpel[m].y; 
+			dipolea += mui*ckr; dipoleb += mui*skr; 
 		}
-		(sampleptr->nsample)++;
-
-		FILE *fout_stress = fopen("mgh-stress.dat", "w");
-
-		if ( fout_stress == NULL ){
-			fprintf(stderr, "Couldn't open file(s)\n");
-		}
-
-		double volume = sptr->lbox.x*sptr->lbox.y*sptr->lbox.z;
-
-		for ( unsigned n=0; n<sampleptr->lvec; n++ ){
-			double fac = 1.0/(sampleptr->nsample*volume*(sampleptr->lvec-n));
-			double t   = n*sampleptr->dtsample;
-	
-			fprintf(fout_stress, "%f ", t); 
-		 
-			for ( unsigned k=0; k<sampleptr->nwaves; k++ ) {
-				fprintf(fout_stress, "%f ", sampleptr->stress[n][k]*fac); 
-			 }
-			 fprintf(fout_stress, "\n");
-		}
-	
-		fclose(fout_stress);
-	
-		sampleptr->index = 0;
+				
+		sampleptr->stressa[idxS][k] = stressa;	sampleptr->stressb[idxS][k] = stressb;
+		sampleptr->dipolea[idxD][k] = dipolea;	sampleptr->dipoleb[idxD][k] = dipoleb;
 	}
-
-}
-
-/*
-sepcumsacf *sep_cuda_sample_msacf_init(unsigned lvec, double dtsample){
-
-	sepcumsacf *sampleptr = (sepcumsacf *)malloc(sizeof(sepcumsacf));
-	if ( sampleptr==NULL )  sep_cuda_mem_error();
-
-	sampleptr->lvec = lvec;
-
-	sampleptr->stress = (double *)malloc(sizeof(double));
-	sampleptr->corr = (double *)malloc(sizeof(double));
-
-	if ( sampleptr->corr==NULL || sampleptr->stress==NULL ) sep_cuda_mem_error();
-
-	for ( unsigned n=0; n<lvec; n++ ) sampleptr->corr[n] = 0.0;
-
-	return sampleptr;
-}
-
-void sep_cuda_sample_msacf_free(sepcumsacf *sampleptr){
-
-	free(sampleptr->stress); free(sampleptr->corr); 
 	
-	free(sampleptr);
+	(sampleptr->stressindex)++; (sampleptr->dipoleindex)++;
+
+	if ( sampleptr->stressindex == sampleptr->stresslvec){
+		(sampleptr->stressnsample)++;
+		sampleptr->stressindex = 0;
+		sep_cuda_print_current_corr(sptr, sampleptr, sampleptr->stress, sampleptr->stressa, sampleptr->stressb, 
+										sampleptr->stresslvec, sampleptr->stressnsample, "mgh-stress.dat");
+	}	
+	
+	if ( sampleptr->dipoleindex == sampleptr->dipolelvec ){
+		(sampleptr->dipolensample)++;
+		sampleptr->dipoleindex = 0;
+		sep_cuda_print_current_corr(sptr, sampleptr, sampleptr->dipole, sampleptr->dipolea, sampleptr->dipoleb, 
+										sampleptr->dipolelvec, sampleptr->dipolensample, "mgh-dipole.dat");
+	}	
+
 
 }
-
-*/
-
 

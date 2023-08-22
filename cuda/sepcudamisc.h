@@ -20,6 +20,11 @@ void sep_cuda_reset_momentum(sepcupart *aptr);
 bool sep_cuda_logrem(unsigned n, int base);
 void sep_cuda_set_molprop_on(sepcusys *sptr, unsigned isample);
 float sep_cuda_wrap_host(float x, float lbox);
+float sep_cuda_periodic_host(float x, float lbox);
+
+// Utility host functions
+float sep_cuda_dot_host(float3 a);
+
 
 /* Helper devince functions - should be calable from all files using the compiler arg. -rdc=true*/
 __device__ float sep_cuda_dot(float4 a);

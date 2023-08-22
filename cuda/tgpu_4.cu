@@ -32,9 +32,9 @@ int main(void){
 	
 	sepcumol *mptr = sep_cuda_init_mol();
 	
-	sep_cuda_read_bonds(aptr, mptr, "start_propanol.top");
-	sep_cuda_read_angles(aptr, mptr, "start_propanol.top");
-	sep_cuda_read_dihedrals(aptr, mptr, "start_propanol.top");
+	sep_cuda_read_bonds(aptr, mptr, "start_propanol.top", 'v');
+	sep_cuda_read_angles(aptr, mptr, "start_propanol.top", 'v');
+	sep_cuda_read_dihedrals(aptr, mptr, "start_propanol.top", 'v');
 
 	sep_cuda_set_exclusion(aptr, "molecule");
 	
