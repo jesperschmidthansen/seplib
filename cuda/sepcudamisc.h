@@ -18,7 +18,7 @@ void sep_cuda_get_pressure(double *npress, double *shearpress, sepcupart *aptr);
 float sep_cuda_eval_momentum(float *momentum, sepcupart *aptr);
 void sep_cuda_reset_momentum(sepcupart *aptr);
 bool sep_cuda_logrem(unsigned n, int base);
-void sep_cuda_set_molprop_on(sepcusys *sptr, unsigned isample);
+void sep_cuda_set_molforcecalc_on(sepcusys *sptr, unsigned isample);
 float sep_cuda_wrap_host(float x, float lbox);
 float sep_cuda_periodic_host(float x, float lbox);
 

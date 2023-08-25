@@ -571,6 +571,23 @@ __global__ void sep_cuda_ryckertbellemann(unsigned *dlist, unsigned ndihedrals, 
 }
 
 
+__global__ void sep_cuda_calc_forceonmol(float3 *df, float3 *dfij, unsigned nmols){
+
+	unsigned molidx = blockDim.x * blockIdx.x + threadIdx.x;
+
+	if ( molidx < nmols ){
+		df[molidx].x = df[molidx].y = df[molidx].z = 0.0f;
+		for ( unsigned n=0; n<nmols; n++ ){
+			df[molidx].x += dfij[nmols*molidx + n].x;
+			df[molidx].y += dfij[nmols*molidx + n].y;
+			df[molidx].z += dfij[nmols*molidx + n].z;
+		}
+	}
+
+
+}
+
+
 // Device functions
 
 __device__ float sep_cuda_mol_dot(float4 a){
@@ -846,22 +863,6 @@ double sep_cuda_mol_calc_avdipole(sepcumol *mptr){
 
 }
 
-
-__global__ void sep_cuda_calc_forceonmol(float3 *df, float3 *dfij, unsigned nmols){
-
-	unsigned molidx = blockDim.x * blockIdx.x + threadIdx.x;
-
-	if ( molidx < nmols ){
-		df[molidx].x = df[molidx].y = df[molidx].z = 0.0f;
-		for ( unsigned n=0; n<nmols; n++ ){
-			df[molidx].x += dfij[nmols*molidx + n].x;
-			df[molidx].y += dfij[nmols*molidx + n].y;
-			df[molidx].z += dfij[nmols*molidx + n].z;
-		}
-	}
-
-}
-
 void sep_cuda_mol_calc_forceonmol(sepcupart *pptr, sepcumol *mptr){
 	
 	const int nb = mptr->nmols/pptr->nthreads+1; 
@@ -869,6 +870,7 @@ void sep_cuda_mol_calc_forceonmol(sepcupart *pptr, sepcumol *mptr){
 
 	sep_cuda_calc_forceonmol<<<nb, nt>>>(mptr->df, mptr->dfij, mptr->nmols);
 
+	cudaDeviceSynchronize();
 }
 
 /*

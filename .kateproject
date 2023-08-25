@@ -1,7 +1,0 @@
-{
-   "name": "seplib",
-   "files": [ {"directory": ".", 
-	   "filters": [".kateproject", "*.c", "*.cpp", "*.cu", "*.h", "Makefile", "*.jl", "*.tex", "*.m", "*.txt"], 
-	   "recursive": 1} ]
-}
-  

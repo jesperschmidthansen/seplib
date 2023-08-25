@@ -82,8 +82,10 @@ void sep_cuda_copy(sepcupart *ptr, char opt_quantity, char opt_direction) {
 	
 }
 
-void sep_cuda_set_molprop_on(sepcusys *sptr, unsigned isample) { 
+void sep_cuda_set_molforcecalc_on(sepcusys *sptr, unsigned isample) { 
+
 	sptr->molprop = true; sptr->molpropinterval = isample; 
+
 }
 
 void sep_cuda_copy_energies(sepcusys *sptr){
