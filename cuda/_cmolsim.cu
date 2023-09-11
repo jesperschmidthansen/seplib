@@ -5,17 +5,18 @@
  * 
  * CUDA headers and libraries are stored different places
  * depending on platform. This wrapper will hopefully make 
- * the installation procedure less combersom
+ * the installation procedure less cumbersom
 *
  ********************************/
  
 #include "cmolsim.h"
 
 #include "sepcuda.h"
-#include "sepcuda.cu"
-
-#include "sepcudamol.h"
-#include "sepcudamol.cu"
+//#include "sepcudamem.cu"
+//#include "sepcudaintgr.cu"
+//#include "sepcudaprfrc.cu"
+//#include "sepcudamisc.cu"
+//#include "sepcudamol.cu"
 
 #include <stdarg.h>
 #include <string.h>
@@ -24,7 +25,6 @@
 sepcupart *pptr; 
 sepcusys *sptr;
 sepcumol *mptr;
-
 
 float maxcutoff = 2.5;
 
@@ -49,9 +49,9 @@ void load_top(const char file[]){
 	
 	mptr = sep_cuda_init_mol();
 	
-	sep_cuda_read_bonds(pptr, mptr, file);
-	sep_cuda_read_angles(pptr, mptr, file);
-	sep_cuda_read_dihedrals(pptr, mptr, file);
+	sep_cuda_read_bonds(pptr, mptr, file, 'v');
+	sep_cuda_read_angles(pptr, mptr, file, 'v');
+	sep_cuda_read_dihedrals(pptr, mptr, file, 'v');
 	
 	initmol = true;
 }

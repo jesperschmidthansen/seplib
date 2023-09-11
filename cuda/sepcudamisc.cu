@@ -192,7 +192,7 @@ void sep_cuda_get_pressure(double *npress, double *shearpress, sepcupart *aptr){
 }
 
 
-float sep_cuda_eval_momentum(float *momentum, sepcupart *aptr){
+float sep_cuda_eval_momentum(float momentum[3], sepcupart *aptr){
 	
 	sep_cuda_copy(aptr, 'v', 'h');
 	sep_cuda_copy(aptr, 'x', 'h');

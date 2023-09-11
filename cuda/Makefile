@@ -2,6 +2,8 @@
 
 INCLUDE_CUDA = /usr/include/
 C_OPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 -Xcompiler -Wall -rdc=true
+OCTAVE_OPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -Wall -Xcompiler -shared -Xcompiler -fPIC -Xcompiler -O3 -Xcompiler -DOCTAVE 
+
 #COPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 -gencode arch=compute_35,code=sm_35 -rdc=true
 
 
@@ -31,9 +33,12 @@ lib: $(OBJECT_FILES)
 %.o: %.cu
 	nvcc -c $(C_OPTIONS) $<
 
-cmolsim.mex: cmolsim.cpp _cmolsim.cu
-	nvcc -rdc=true -Xcompiler -Wall -shared -Xcompiler -fPIC -O2 sepcuda.cu -o libsepcuda.so
-	nvcc -rdc=true -Xcompiler -Wall -shared -Xcompiler -fPIC -O2 sepcudamol.cu -o libsepcudamol.so
-	nvcc -rdc=true -Xcompiler -Wall -shared -Xcompiler -fPIC -O2 _cmolsim.cu -o libcmolsim.so
-	mkoctfile --verbose --mex cmolsim.cpp -L. -I. -lcmolsim -lsepcuda -lcudart -lsepcudamol
+cmolsim.oct: cmolsim.cpp _cmolsim.cu
+	nvcc $(OCTAVE_OPTIONS) sepcudamem.cu -o libsepcudamem.so
+	nvcc $(OCTAVE_OPTIONS) sepcudaintgr.cu -o libsepcudaintgr.so
+	nvcc $(OCTAVE_OPTIONS) sepcudamisc.cu -o libsepcudamisc.so
+	nvcc $(OCTAVE_OPTIONS) sepcudaprfrc.cu -o libsepcudaprfrc.so
+	nvcc $(OCTAVE_OPTIONS) sepcudamol.cu -o libsepcudamol.so
+	nvcc $(OCTAVE_OPTIONS) _cmolsim.cu -o libcmolsim.so
+	mkoctfile --verbose cmolsim.cpp -L. -I. -lcmolsim -lcudart -lsepcudamem -lsepcudaintgr -lsepcudamisc -lsepcudaprfrc -lsepcudamol
 

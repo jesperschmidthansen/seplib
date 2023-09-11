@@ -1,6 +1,35 @@
 
 #include "sepcudaprfrc.h"
 
+#ifdef OCTAVE
+
+__device__ float sep_cuda_wrap(float x, float lbox){
+	
+	if ( x > 0.5*lbox ) 
+		x -= lbox;
+	else if  ( x < -0.5*lbox ) 
+		x += lbox;
+	
+	return x;
+}
+
+__device__ float sep_cuda_periodic(float x, float lbox, int *crossing){
+	
+	if ( x > lbox ) {
+		x -= lbox;  
+		*crossing = *crossing + 1;
+	}
+	else if  ( x < 0 ) {
+		x += lbox;
+		*crossing = *crossing - 1;
+	}
+	
+	return x;
+}
+
+#endif
+
+
 // Host functions
 
 bool sep_cuda_check_neighblist(sepcupart *ptr, float maxdist){
