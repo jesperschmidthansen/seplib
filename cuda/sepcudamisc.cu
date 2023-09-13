@@ -446,7 +446,7 @@ void sep_cuda_reset_iteration(sepcupart *pptr, sepcusys *sptr){
 	if ( sptr->molprop && pptr->sptr->iteration%pptr->sptr->molpropinterval==0 ){	
 		sep_cuda_reset_mol_fij<<<nb,nt>>>(sptr->mptr->dfij, sptr->mptr->nmols);
 	}
-
+	
 	sptr->iteration ++;
 
 	sptr->cmflag = false;

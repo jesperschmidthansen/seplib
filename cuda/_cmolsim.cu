@@ -12,11 +12,6 @@
 #include "cmolsim.h"
 
 #include "sepcuda.h"
-//#include "sepcudamem.cu"
-//#include "sepcudaintgr.cu"
-//#include "sepcudaprfrc.cu"
-//#include "sepcudamisc.cu"
-//#include "sepcudamol.cu"
 
 #include <stdarg.h>
 #include <string.h>
@@ -36,6 +31,7 @@ int ensemble = 0; // 0: nve, 1: nvt
 
 bool init = false, initmol = false;
 bool needneighbupdate = true;
+
 
 void load_xyz(const char file[]){
 	
@@ -96,7 +92,7 @@ void update_neighblist(void){
 	
 }
 
-void force_lj(char *types, float *ljparams){
+void force_lj(const char *types, float *ljparams){
 	
 	if ( needneighbupdate && iterationnumber%neighbupdatefreq == 0 )
 		sep_cuda_update_neighblist(pptr, sptr, maxcutoff);
@@ -124,7 +120,7 @@ void integrate_leapfrog(void){
 	
 }
 
-void save_xyz(char *filename){
+void save_xyz(const char filename[]){
 	
 	sep_cuda_save_xyz(pptr, filename);
 	

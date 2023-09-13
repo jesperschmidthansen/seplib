@@ -13,9 +13,15 @@ enum {
 };
 
 unsigned hashfun(const std::string key);
+
 void action_load(const octave_value_list& args);
-void action_get(const octave_value_list& args);
+void action_reset(void);
+void action_neighbourupdate(void);
+void action_calcforce(const octave_value_list& args);
+void action_integrate(const octave_value_list& args);
+void action_save(const octave_value_list& args);
 void action_clear(void);
+void action_get(const octave_value_list& args);
 
 
 DEFUN_DLD(cmolsim, args, , HELP){
@@ -26,10 +32,25 @@ DEFUN_DLD(cmolsim, args, , HELP){
 
 	switch ( hashfun(action) ){
 		case LOAD:
-			action_load(args);	
+			action_load(args); 
+			break;
+		case RESET:
+			action_reset();	
+			break;
+		case NUPDATE:
+			action_neighbourupdate(); 
+			break;
+		case CALCFORCE:
+			action_calcforce(args);	
+			break;
+		case INTEGRATE:
+			action_integrate(args); 
+			break;
+		case SAVE:
+			action_save(args); 
 			break;
 		case GET:
-			action_get(args);
+			action_get(args); 
 			break;
 		case CLEAR:
 			action_clear();
@@ -67,6 +88,53 @@ void action_load(const octave_value_list& args){
 
 }
 
+void action_reset(void){
+	reset_iteration();
+}
+
+void action_neighbourupdate(void){
+	update_neighblist();
+}
+
+void action_calcforce(const octave_value_list& args){
+	
+	const std::string specifier = args(1).string_value();
+
+	if ( strcmp(specifier.c_str(), "lj")==0 ){
+      const std::string types  =  args(2).string_value();
+	  
+      float cf = args(3).scalar_value();
+      float sigma = args(4).scalar_value();
+      float epsilon = args(5).scalar_value();
+      
+      float ljparam[3]={sigma, epsilon, cf};
+
+	  force_lj(types.c_str(), ljparam);
+	}
+}
+
+void action_integrate(const octave_value_list& args){
+
+	const std::string specifier = args(1).string_value();
+
+	if ( strcmp(specifier.c_str(), "leapfrog")==0 ){
+		integrate_leapfrog();		
+	}
+
+}
+
+void action_save(const octave_value_list& args){
+
+	const std::string specifier = args(1).string_value();
+
+	save_xyz(specifier.c_str());		
+}
+
+void action_clear(void){ 
+
+	free_memory();
+
+}
 
 void action_get(const octave_value_list& args){
 	
@@ -77,11 +145,5 @@ void action_get(const octave_value_list& args){
 	}
 }
 
-
-void action_clear(void){ 
-
-	free_memory();
-
-}
 
 

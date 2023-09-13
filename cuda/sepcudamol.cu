@@ -789,7 +789,7 @@ void sep_cuda_mol_calc_dipoles(sepcupart *pptr, sepcumol *mptr){
 		  	n++;
 		} while (1); // end do
 	 	
-		double d[3];
+		double d[3]={0.0};
  		if ( neg_counter > 0 && pos_counter > 0 )
       		for ( int k=0; k<3; k++ ) d[k] = rpos[k]/pos_counter - rneg[k]/neg_counter;
 

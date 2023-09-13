@@ -27,7 +27,7 @@ int main(int argc, char **argv){
 	
   // Setting parameter values 
   rcut = 2.5;
-  nloops = 1000;
+  nloops = 100000;
   dt = 0.005;
 
   // Allocating memory 
