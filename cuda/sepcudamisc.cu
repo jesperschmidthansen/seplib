@@ -442,7 +442,7 @@ void sep_cuda_reset_iteration(sepcupart *pptr, sepcusys *sptr){
 
 	sep_cuda_reset<<<nb,nt>>>
 			(pptr->df, pptr->epot, pptr->press, pptr->sumpress, sptr->denergies, pptr->npart);
-
+	
 	if ( sptr->molprop && pptr->sptr->iteration%pptr->sptr->molpropinterval==0 ){	
 		sep_cuda_reset_mol_fij<<<nb,nt>>>(sptr->mptr->dfij, sptr->mptr->nmols);
 	}
@@ -450,7 +450,7 @@ void sep_cuda_reset_iteration(sepcupart *pptr, sepcusys *sptr){
 	sptr->iteration ++;
 
 	sptr->cmflag = false;
-
+	
 	cudaDeviceSynchronize();
 
 }

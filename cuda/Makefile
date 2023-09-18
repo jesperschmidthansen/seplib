@@ -1,7 +1,7 @@
 
 
 INCLUDE_CUDA = /usr/include/
-C_OPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 -Xcompiler -Wall -rdc=true
+C_OPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -Ofast -Xcompiler -Wall -rdc=true  
 OCTAVE_OPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -Wall -Xcompiler -shared -Xcompiler -fPIC -Xcompiler -O3 -Xcompiler -DOCTAVE 
 
 #COPTIONS=-Xptxas -O3 -use_fast_math -Xcompiler -O2 -gencode arch=compute_35,code=sm_35 -rdc=true

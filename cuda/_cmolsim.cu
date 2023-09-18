@@ -68,29 +68,19 @@ void free_memory(void){
 	}
 }
 
-void get_positions(void){
-	
-	sep_cuda_copy(pptr, 'x', 'h');
-	
-	printf("%f %f %f\n", pptr->hx[276].x, pptr->hx[341].y, pptr->hx[311].z);
-}
-
 void reset_iteration(void){
 	
 	sep_cuda_reset_iteration(pptr, sptr);
-	
+
+	if ( iterationnumber%neighbupdatefreq == 0 ) 	
+		sep_cuda_update_neighblist(pptr, sptr, maxcutoff);
+
 }
 
 void reset_momentum(int freq){
 	resetmomentumfreq = freq;
 }
 
-
-void update_neighblist(void){
-	
-	sep_cuda_update_neighblist(pptr, sptr, maxcutoff);
-	
-}
 
 void force_lj(const char *types, float *ljparams){
 	

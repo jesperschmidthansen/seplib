@@ -23,7 +23,7 @@ void sep_cuda_build_neighblist(int *neighlist, float *dist, float4 *p, int *moli
 
 /* Pair interactions - types specified */
 __global__ 
-void sep_cuda_lj(const char type1, const char type2, float3 params, int *neighblist, float4 *pos, float4 *force,
+void sep_cuda_lj(const char type1, const char type2, float4 params, int *neighblist, float4 *pos, float4 *force,
 							int *molindex, float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart);
 
 /* Pair interactions - all types have same interactions (faster) */
@@ -61,7 +61,7 @@ __global__ void sep_cuda_calc_molforce(float3 *mforce, float cf, int *neighblist
 
 /* Wrapper interfaces*/
 
-void sep_cuda_force_lj(sepcupart *pptr, const char types[], float params[3]);
+void sep_cuda_force_lj(sepcupart *pptr, const char types[], float params[4]);
 void sep_cuda_force_lj(sepcupart *pptr, float params[3]);
 void sep_cuda_force_lj_sf(sepcupart *pptr, const char types[], float params[3]);
 void sep_cuda_force_sf(sepcupart *pptr, const float cf);

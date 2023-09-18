@@ -38,14 +38,14 @@ int main(void){
 
 	sep_cuda_set_exclusion(aptr, "molecule");
 	
-	float ljparamCC[3]={1.24,1.05,2.5}; 
-	float ljparamcc[3]={1.31,0.49,2.5};
-	float ljparamOO[3]={1.00,1.00,2.5};
+	float ljparamCC[4]={1.24,1.05,2.5, 1.0}; 
+	float ljparamcc[4]={1.31,0.49,2.5, 1.0};
+	float ljparamOO[4]={1.00,1.00,2.5, 1.0};
 	
-	float ljparamCc[3]={1.28, 0.72, 2.5};
-	float ljparamCO[3]={1.12, 1.02, 2.5};
+	float ljparamCc[4]={1.28, 0.72, 2.5, 1.0};
+	float ljparamCO[4]={1.12, 1.02, 2.5, 1.0};
 	
-	float ljparamcO[3]={1.16, 0.70, 2.5};
+	float ljparamcO[4]={1.16, 0.70, 2.5,1.0};
 	
 	float rbparam0[6] = {9.0,   22.9,   1.1,  -33.1, 0.0,  0.0};
 	float rbparam1[6] = {3.6,   3.8,    0.62, -8.1,  0.0,  0.0};

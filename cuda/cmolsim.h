@@ -8,10 +8,7 @@ void save_xyz(const char filename[]);
 
 void free_memory(void);
 
-void get_positions(void);
-
 void reset_iteration(void);
-void update_neighblist(void);
 
 void force_lj(const char *types, float *ljparam);
 void force_coulomb(float cf);

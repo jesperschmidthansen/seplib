@@ -18,10 +18,10 @@ Notes:
 		27000    746                 510
 
 	GTX2080: 
-		Npart   sps (update 10)   sps-auto (skin 0.3) 
-		1000    11e3
+		Npart   sps (update 10)   sps-auto (skin 0.3)   sps (update 10 Sep 17-'23)  
+		1000    11e3                                    7300 (!) New cluster software uptate?   
 		4000    4900
-		8000    2300
+		8000    2300                                    1265 (!) New cluster software uptate?
 		27000   148
 		
 	bead72 4 threads                Labtop 4 threads
