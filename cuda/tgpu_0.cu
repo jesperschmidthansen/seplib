@@ -14,7 +14,7 @@ int main(int argc, char **argv){
 	sepcusys *sptr = sep_cuda_sys_setup(ptr);
 
 	float ljparam[3]={1.0,1.0,2.5};
-	
+		
 	int n=0; int nloops = 100000; 
 	while ( n<nloops ){
 		

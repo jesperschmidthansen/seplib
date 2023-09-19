@@ -169,7 +169,7 @@ sepcusys *sep_cuda_sys_setup(sepcupart *pptr){
 	sptr->nthreads = pptr->nthreads;
 	
 	sptr->dt = 0.005;
-	sptr->skin = 0.3;
+	sptr->skin = 0.5;
 	sptr->lbox = pptr->lbox;
 	sptr->iteration = -1;
 

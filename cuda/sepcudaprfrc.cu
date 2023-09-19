@@ -138,18 +138,19 @@ __global__ void sep_cuda_build_neighblist(int *neighlist, float4 *p, float *dist
 				int idxj = tile*blockDim.x + j;
 				
 				if ( idxj >= npart )  break;
-
-				/*
-				float dx = mpx - spos[j].x; dx = sep_cuda_wrap(dx, lbox.x);
-				float dy = mpy - spos[j].y; dy = sep_cuda_wrap(dy, lbox.y);
-				float dz = mpz - spos[j].z; dz = sep_cuda_wrap(dz, lbox.z);
-				*/
-				
-				float dx = mpx - p[idxj].x; dx = sep_cuda_wrap(dx, lbox.x);
-				float dy = mpy - p[idxj].y; dy = sep_cuda_wrap(dy, lbox.y);
-				float dz = mpz - p[idxj].z; dz = sep_cuda_wrap(dz, lbox.z);
-				
-				
+		
+				float dx = mpx - p[idxj].x;
+				if ( dx > 0.5*lbox.x ) dx -= lbox.x;
+				else if  ( dx < -0.5*lbox.x ) dx += lbox.x;
+	
+				float dy = mpy - p[idxj].y; 
+				if ( dy > 0.5*lbox.y ) dy -= lbox.y;
+				else if  ( dy < -0.5*lbox.y ) dy += lbox.y;
+	
+				float dz = mpz - p[idxj].z; 
+				if ( dz > 0.5*lbox.z ) dz -= lbox.z;
+				else if  ( dz < -0.5*lbox.z ) dz += lbox.z;
+	
 				float distSqr = dx*dx + dy*dy + dz*dz;
 
 				if ( distSqr < 2.0*FLT_EPSILON ) continue; // Self contribution
@@ -183,8 +184,9 @@ __global__ void sep_cuda_build_neighblist(int *neighlist, float *dist, float4 *p
 		float cfsqr = cf*cf; 
 		int arrayOffset = pidx*nneighmax;
 		int moli = molindex[pidx];
-		float mpx = __ldg(&p[pidx].x); float mpy = __ldg(&p[pidx].y); float mpz = __ldg(&p[pidx].z);
-
+	//	float mpx = __ldg(&p[pidx].x); float mpy = __ldg(&p[pidx].y); float mpz = __ldg(&p[pidx].z);
+		float mpx =p[pidx].x; float mpy = p[pidx].y; float mpz = p[pidx].z;
+	
 		#pragma unroll	
 		for ( int n=0; n<nneighmax; n++ ) neighlist[arrayOffset + n] = -1; //<- this should be optimized 
 		
@@ -200,11 +202,19 @@ __global__ void sep_cuda_build_neighblist(int *neighlist, float *dist, float4 *p
 				if ( idxj >= npart )  break;
 				
 				if ( moli == molindex[idxj] ) continue;
-				
-				float dx = mpx - p[idxj].x; dx = sep_cuda_wrap(dx, lbox.x);
-				float dy = mpy - p[idxj].y; dy = sep_cuda_wrap(dy, lbox.y);
-				float dz = mpz - p[idxj].z; dz = sep_cuda_wrap(dz, lbox.z);
-				
+	
+				float dx = mpx - p[idxj].x;
+				if ( dx > 0.5*lbox.x ) dx -= lbox.x;
+				else if  ( dx < -0.5*lbox.x ) dx += lbox.x;
+	
+				float dy = mpy - p[idxj].y; 
+				if ( dy > 0.5*lbox.y ) dy -= lbox.y;
+				else if  ( dy < -0.5*lbox.y ) dy += lbox.y;
+	
+				float dz = mpz - p[idxj].z; 
+				if ( dz > 0.5*lbox.z ) dz -= lbox.z;
+				else if  ( dz < -0.5*lbox.z ) dz += lbox.z;
+			
 				float distSqr = dx*dx + dy*dy + dz*dz;
 
 				if ( distSqr < 2.0*FLT_EPSILON ) continue; // Self contribution
@@ -264,11 +274,19 @@ __global__ void sep_cuda_lj(const char type1, const char type2, float4 params, i
 			int jtype = __float2int_rd(force[pjdx].w);
 			
 			if ( (itype == atype && jtype == btype) || (itype == btype && jtype == atype) ){
-				
-				float dx = mpx - pos[pjdx].x; dx = sep_cuda_wrap(dx, lbox.x);
-				float dy = mpy - pos[pjdx].y; dy = sep_cuda_wrap(dy, lbox.y);
-				float dz = mpz - pos[pjdx].z; dz = sep_cuda_wrap(dz, lbox.z);
-
+			
+				float dx = mpx - pos[pjdx].x; //dx = sep_cuda_wrap(dx, lbox.x);
+				if ( dx > 0.5*lbox.x ) dx -= lbox.x;
+				else if  ( dx < -0.5*lbox.x ) dx += lbox.x;
+		
+				float dy = mpy - pos[pjdx].y; //dy = sep_cuda_wrap(dy, lbox.y);
+				if ( dy > 0.5*lbox.y ) dy -= lbox.y;
+				else if  ( dy < -0.5*lbox.y ) dy += lbox.y;
+		
+				float dz = mpz - pos[pjdx].z; //dz = sep_cuda_wrap(dz, lbox.z);
+				if ( dz > 0.5*lbox.z ) dz -= lbox.z;
+				else if  ( dz < -0.5*lbox.z ) dz += lbox.z;
+		
 				float distSqr = dx*dx + dy*dy + dz*dz;
 
 				if ( distSqr < cfsqr ) {
@@ -305,28 +323,38 @@ __global__ void sep_cuda_lj(float3 params, int *neighblist, float4 *pos, float4 
 	int pidx = blockDim.x * blockIdx.x + threadIdx.x;
 
 	if ( pidx < npart ) {
-		
+
 		float sigma = params.x; 
 		float epsilon = params.y; 
-		float cf = params.z; //__ldg does not work..?
+		float cf = params.z; 
 		float cfsqr = cf*cf;
 		float Epot_shift = 4.0*epsilon*(powf(sigma/cf, 12.) - powf(sigma/cf,6.));
 		
 		int offset = pidx*maxneighb;
 			
-		float mpx = __ldg(&pos[pidx].x); float mpy = __ldg(&pos[pidx].y); float mpz = __ldg(&pos[pidx].z);
-				
+		//float mpx = __ldg(&pos[pidx].x); float mpy = __ldg(&pos[pidx].y);float mpz = __ldg(&pos[pidx].z);
+		float mpx =pos[pidx].x; float mpy = pos[pidx].y; float mpz = pos[pidx].z;
+	
 		float Fx = 0.0f; float Fy = 0.0f; float Fz = 0.0f; 
 		float Epot = 0.0f; 
 		float4 mpress; mpress.x = mpress.y = mpress.z = mpress.w = 0.0f;
-		int n = 0;
+		
+		register int n = 0;
 		while ( neighblist[n+offset] != -1 ){
 			int pjdx = neighblist[n+offset];
 				
-			float dx = mpx - pos[pjdx].x; dx = sep_cuda_wrap(dx, lbox.x);
-			float dy = mpy - pos[pjdx].y; dy = sep_cuda_wrap(dy, lbox.y);
-			float dz = mpz - pos[pjdx].z; dz = sep_cuda_wrap(dz, lbox.z);
-
+			float dx = mpx - pos[pjdx].x; //dx = sep_cuda_wrap(dx, lbox.x);
+			if ( dx > 0.5*lbox.x ) dx -= lbox.x;
+			else if  ( dx < -0.5*lbox.x ) dx += lbox.x;
+	
+			float dy = mpy - pos[pjdx].y; //dy = sep_cuda_wrap(dy, lbox.y);
+			if ( dy > 0.5*lbox.y ) dy -= lbox.y;
+			else if  ( dy < -0.5*lbox.y ) dy += lbox.y;
+	
+			float dz = mpz - pos[pjdx].z; //dz = sep_cuda_wrap(dz, lbox.z);
+			if ( dz > 0.5*lbox.z ) dz -= lbox.z;
+			else if  ( dz < -0.5*lbox.z ) dz += lbox.z;
+	
 			float distSqr = dx*dx + dy*dy + dz*dz;
 
 			if ( distSqr < cfsqr ) {
@@ -335,7 +363,8 @@ __global__ void sep_cuda_lj(float3 params, int *neighblist, float4 *pos, float4 
 				float ft =  48.0*epsilon*rri3*(rri3 - 0.5)*rri; //pow( sqrtf(1.0/distSqr), 11.0 ); //
 				
 				Fx += ft*dx; Fy += ft*dy; Fz += ft*dz;
-				Epot += 0.5*(4.0*epsilon*rri3*(rri3 - 1.0) - Epot_shift);
+			
+			   	Epot += 0.5*(4.0*epsilon*rri3*(rri3 - 1.0) - Epot_shift);
 				mpress.x += dx*ft*dx + dy*ft*dy + dz*ft*dz; 
 				mpress.y += dx*ft*dy; mpress.z += dx*ft*dz; mpress.w += dy*ft*dz;
 			}
@@ -344,9 +373,11 @@ __global__ void sep_cuda_lj(float3 params, int *neighblist, float4 *pos, float4 
 		}
 			
 		force[pidx].x += Fx; force[pidx].y += Fy; force[pidx].z += Fz;
+		
 		epot[pidx] += Epot; 
 		press[pidx].x += mpress.x;
 		press[pidx].y += mpress.y; press[pidx].z += mpress.z; press[pidx].w += mpress.w; 
+	
 	}
 }
 

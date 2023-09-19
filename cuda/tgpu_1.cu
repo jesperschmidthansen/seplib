@@ -20,7 +20,7 @@ int main(int argc, char **argv){
 	
 	printf("Ensemble is %s\n", ensemble);
 			
-	sepcupart *ptr = sep_cuda_load_xyz("start_singleAN8000.xyz");
+	sepcupart *ptr = sep_cuda_load_xyz("start_singleAN1000.xyz");
 	sepcusys *sptr = sep_cuda_sys_setup(ptr);
 
 	sepcugh *ghptr = sep_cuda_sample_gh_init(sptr, 100, 5, 10*sptr->dt);
@@ -28,7 +28,7 @@ int main(int argc, char **argv){
 	float ljparam[3] = {1.0, 1.0, 2.5};
 	float dump[3];
 	float temp0 = 2.0; 	char filestr[100];
-	int n = 0; int nloops = 1000000; bool update = true; int counter = 0;
+	int n = 0; int nloops = 100000; bool update = true; int updatecounter = 0; int counter = 0;
 	while ( n<nloops ){
 
 		//if ( sep_cuda_logrem(n, 2) ){
@@ -44,7 +44,7 @@ int main(int argc, char **argv){
 		
 		sep_cuda_reset_iteration(ptr, sptr);
 
-		if ( update ) sep_cuda_update_neighblist(ptr, sptr, 2.5);
+		if ( update ) { updatecounter++; sep_cuda_update_neighblist(ptr, sptr, 2.5); }
 	
 		sep_cuda_force_lj(ptr, ljparam);
 			
@@ -74,6 +74,7 @@ int main(int argc, char **argv){
 		n++;
 	}
 
+	printf("Update freq. %f steps per update\n", (float)n/updatecounter);
 	sep_cuda_save_xyz(ptr, "test.xyz");
 	
 	sep_cuda_sample_gh_free(ghptr);

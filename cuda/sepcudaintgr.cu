@@ -35,27 +35,32 @@ __global__ void sep_cuda_leapfrog(float4 *pos, float4 *vel,
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
 	
 	float4 oldpos = make_float4(pos[i].x, pos[i].y, pos[i].z, 0.0f);
-	
+	float4 mypos = make_float4(pos[i].x, pos[i].y, pos[i].z, pos[i].w);
+
 	if ( i < npart ) {
-		float imass = 1.0/pos[i].w;
-		vel[i].x += force[i].x*imass*dt;
+		
+		float imass = 1.0/mypos.w;
+		
+		vel[i].x += force[i].x*imass*dt; 
 		vel[i].y += force[i].y*imass*dt;
 		vel[i].z += force[i].z*imass*dt;
 		
-		pos[i].x += vel[i].x*dt;
-		pos[i].x = sep_cuda_periodic(pos[i].x, lbox.x, &(crossing[i].x));
+		mypos.x += vel[i].x*dt;
+		mypos.x = sep_cuda_periodic(mypos.x, lbox.x, &(crossing[i].x));
 		
-		pos[i].y += vel[i].y*dt;
-		pos[i].y = sep_cuda_periodic(pos[i].y, lbox.y, &(crossing[i].y));
-		
-		pos[i].z += vel[i].z*dt; 
-		pos[i].z = sep_cuda_periodic(pos[i].z, lbox.z, &(crossing[i].z));
+		mypos.y += vel[i].y*dt;
+		mypos.y = sep_cuda_periodic(mypos.y, lbox.y, &(crossing[i].y));
+	
+		mypos.z += vel[i].z*dt;
+		mypos.z = sep_cuda_periodic(mypos.z, lbox.z, &(crossing[i].z));
 					
-		float dx = oldpos.x - pos[i].x; dx = sep_cuda_wrap(dx, lbox.x);
-		float dy = oldpos.y - pos[i].y; dy = sep_cuda_wrap(dy, lbox.y);
-		float dz = oldpos.z - pos[i].z; dz = sep_cuda_wrap(dz, lbox.z);
-
+		float dx = oldpos.x - mypos.x; dx = sep_cuda_wrap(dx, lbox.x);
+		float dy = oldpos.y - mypos.y; dy = sep_cuda_wrap(dy, lbox.y);
+		float dz = oldpos.z - mypos.z; dz = sep_cuda_wrap(dz, lbox.z);
+	
 		dist[i] += sqrtf(dx*dx + dy*dy + dz*dz);
+
+		pos[i].x = mypos.x; pos[i].y = mypos.y; pos[i].z = mypos.z;
 	}
 	
 }
