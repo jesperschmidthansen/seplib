@@ -1,5 +1,11 @@
 #include "sepcudamisc.h"
 
+__inline__ __device__ float sep_cuda_dot(float4 a){
+	
+	return (a.x*a.x + a.y*a.y + a.z*a.z);
+	
+}
+
 void sep_cuda_mem_error(void){
 	
 	fprintf(stderr, "Memory allocation error");
@@ -271,27 +277,6 @@ float sep_cuda_dot_host(float3 a){
 
 }
 
-__global__ void sep_cuda_lattice_force(const char type, float springConstant, float4 *pos, float4 *pos0, float4 *force,
-									   float3 lbox, const unsigned npart){
-
-	
-	unsigned pidx = blockDim.x * blockIdx.x + threadIdx.x;
-	int itype = __float2int_rd(force[pidx].w);
-		
-	if ( pidx < npart && itype == (int)type ){
-		
-		float dx = pos[pidx].x - pos0[pidx].x; dx = sep_cuda_wrap(dx, lbox.x);
-		float dy = pos[pidx].y - pos0[pidx].y; dy = sep_cuda_wrap(dy, lbox.y);
-		float dz = pos[pidx].z - pos0[pidx].z; dz = sep_cuda_wrap(dz, lbox.z);
-
-		force[pidx].x = - springConstant*dx;
-		force[pidx].y = - springConstant*dy;
-		force[pidx].z = - springConstant*dz;
-		
-	}
-	
-}
-
 
 __global__ void sep_cuda_sumdistance(float *totalsum, float *dist, float maxdist, unsigned npart){
 	
@@ -425,17 +410,6 @@ __global__ void sep_cuda_reset_mol_fij(float3 *force, unsigned nmol){
 
 
 // Wrapper/interface functions
-void sep_cuda_force_lattice(sepcupart *pptr, const char type, float springConstant){
-	const int nb = pptr->nblocks; 
-	const int nt = pptr->nthreads;
-	
-	sep_cuda_lattice_force<<<nb, nt>>>
-		(type, springConstant, pptr->dx, pptr->dx0, pptr->df, pptr->lbox, pptr->npart);
-		
-	cudaDeviceSynchronize();
-
-}
-
 void sep_cuda_reset_iteration(sepcupart *pptr, sepcusys *sptr){
 	const int nb = sptr->nblocks; 
 	const int nt = sptr->nthreads;
@@ -475,54 +449,4 @@ void sep_cuda_get_energies(sepcupart *ptr, sepcusys *sptr, const char ensemble[]
 	sptr->temp = 2./3*sptr->ekin;
 }
 
-
-
-__device__ float sep_cuda_dot(float4 a){
-	
-	return (a.x*a.x + a.y*a.y + a.z*a.z);
-	
-}
-
-__device__ float sep_cuda_dot(float3 a, float3 b){
-	
-	return (a.x*b.x + a.y*b.y + a.z*b.z);
-	
-}
-
-__device__ float sep_cuda_wrap(float x, float lbox){
-	
-	if ( x > 0.5*lbox ) 
-		x -= lbox;
-	else if  ( x < -0.5*lbox ) 
-		x += lbox;
-	
-	return x;
-}
-
-__device__ float sep_cuda_periodic(float x, float lbox, int *crossing){
-	
-	if ( x > lbox ) {
-		x -= lbox;  
-		*crossing = *crossing + 1;
-	}
-	else if  ( x < 0 ) {
-		x += lbox;
-		*crossing = *crossing - 1;
-	}
-	
-	return x;
-}
-
-__device__ bool sep_cuda_exclude_pair(int *exclusionlist, int numbexclude, int offset, int idxj){
-	
-	int retval = false;
-	
-	for ( int n=1; n<=numbexclude; n++ ){
-		if ( exclusionlist[n+offset] == idxj ) {
-			retval = true;  break;
-		}
-	}
-
-	return retval;
-}
 

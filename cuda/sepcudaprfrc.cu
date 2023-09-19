@@ -1,9 +1,7 @@
 
 #include "sepcudaprfrc.h"
 
-#ifdef OCTAVE
-
-__device__ float sep_cuda_wrap(float x, float lbox){
+__inline__  __device__ float sep_cuda_wrap(float x, float lbox){
 	
 	if ( x > 0.5*lbox ) 
 		x -= lbox;
@@ -13,7 +11,7 @@ __device__ float sep_cuda_wrap(float x, float lbox){
 	return x;
 }
 
-__device__ float sep_cuda_periodic(float x, float lbox, int *crossing){
+__inline__ __device__ float sep_cuda_periodic(float x, float lbox, int *crossing){
 	
 	if ( x > lbox ) {
 		x -= lbox;  
@@ -26,9 +24,6 @@ __device__ float sep_cuda_periodic(float x, float lbox, int *crossing){
 	
 	return x;
 }
-
-#endif
-
 
 // Host functions
 
@@ -139,17 +134,17 @@ __global__ void sep_cuda_build_neighblist(int *neighlist, float4 *p, float *dist
 				
 				if ( idxj >= npart )  break;
 		
-				float dx = mpx - p[idxj].x;
-				if ( dx > 0.5*lbox.x ) dx -= lbox.x;
-				else if  ( dx < -0.5*lbox.x ) dx += lbox.x;
+				float dx = mpx - p[idxj].x;  dx = sep_cuda_wrap(dx, lbox.x);
+				//if ( dx > 0.5*lbox.x ) dx -= lbox.x;
+				//else if  ( dx < -0.5*lbox.x ) dx += lbox.x;
 	
-				float dy = mpy - p[idxj].y; 
-				if ( dy > 0.5*lbox.y ) dy -= lbox.y;
-				else if  ( dy < -0.5*lbox.y ) dy += lbox.y;
+				float dy = mpy - p[idxj].y;  dy = sep_cuda_wrap(dy, lbox.y);
+				//if ( dy > 0.5*lbox.y ) dy -= lbox.y;
+				//else if  ( dy < -0.5*lbox.y ) dy += lbox.y;
 	
-				float dz = mpz - p[idxj].z; 
-				if ( dz > 0.5*lbox.z ) dz -= lbox.z;
-				else if  ( dz < -0.5*lbox.z ) dz += lbox.z;
+				float dz = mpz - p[idxj].z;  dz = sep_cuda_wrap(dz, lbox.z);
+				//if ( dz > 0.5*lbox.z ) dz -= lbox.z;
+				//else if  ( dz < -0.5*lbox.z ) dz += lbox.z;
 	
 				float distSqr = dx*dx + dy*dy + dz*dz;
 
@@ -203,17 +198,17 @@ __global__ void sep_cuda_build_neighblist(int *neighlist, float *dist, float4 *p
 				
 				if ( moli == molindex[idxj] ) continue;
 	
-				float dx = mpx - p[idxj].x;
-				if ( dx > 0.5*lbox.x ) dx -= lbox.x;
-				else if  ( dx < -0.5*lbox.x ) dx += lbox.x;
+				float dx = mpx - p[idxj].x; dx = sep_cuda_wrap(dx, lbox.x);
+//				if ( dx > 0.5*lbox.x ) dx -= lbox.x;
+//				else if  ( dx < -0.5*lbox.x ) dx += lbox.x;
 	
-				float dy = mpy - p[idxj].y; 
-				if ( dy > 0.5*lbox.y ) dy -= lbox.y;
-				else if  ( dy < -0.5*lbox.y ) dy += lbox.y;
+				float dy = mpy - p[idxj].y;  dy = sep_cuda_wrap(dy, lbox.y);
+//				if ( dy > 0.5*lbox.y ) dy -= lbox.y;
+//				else if  ( dy < -0.5*lbox.y ) dy += lbox.y;
 	
-				float dz = mpz - p[idxj].z; 
-				if ( dz > 0.5*lbox.z ) dz -= lbox.z;
-				else if  ( dz < -0.5*lbox.z ) dz += lbox.z;
+				float dz = mpz - p[idxj].z;  dz = sep_cuda_wrap(dz, lbox.z);
+//				if ( dz > 0.5*lbox.z ) dz -= lbox.z;
+//				else if  ( dz < -0.5*lbox.z ) dz += lbox.z;
 			
 				float distSqr = dx*dx + dy*dy + dz*dz;
 
@@ -275,17 +270,17 @@ __global__ void sep_cuda_lj(const char type1, const char type2, float4 params, i
 			
 			if ( (itype == atype && jtype == btype) || (itype == btype && jtype == atype) ){
 			
-				float dx = mpx - pos[pjdx].x; //dx = sep_cuda_wrap(dx, lbox.x);
-				if ( dx > 0.5*lbox.x ) dx -= lbox.x;
-				else if  ( dx < -0.5*lbox.x ) dx += lbox.x;
+				float dx = mpx - pos[pjdx].x; dx = sep_cuda_wrap(dx, lbox.x);
+				//if ( dx > 0.5*lbox.x ) dx -= lbox.x;
+				//else if  ( dx < -0.5*lbox.x ) dx += lbox.x;
 		
-				float dy = mpy - pos[pjdx].y; //dy = sep_cuda_wrap(dy, lbox.y);
-				if ( dy > 0.5*lbox.y ) dy -= lbox.y;
-				else if  ( dy < -0.5*lbox.y ) dy += lbox.y;
+				float dy = mpy - pos[pjdx].y; dy = sep_cuda_wrap(dy, lbox.y);
+				//if ( dy > 0.5*lbox.y ) dy -= lbox.y;
+				//else if  ( dy < -0.5*lbox.y ) dy += lbox.y;
 		
-				float dz = mpz - pos[pjdx].z; //dz = sep_cuda_wrap(dz, lbox.z);
-				if ( dz > 0.5*lbox.z ) dz -= lbox.z;
-				else if  ( dz < -0.5*lbox.z ) dz += lbox.z;
+				float dz = mpz - pos[pjdx].z; dz = sep_cuda_wrap(dz, lbox.z);
+				//if ( dz > 0.5*lbox.z ) dz -= lbox.z;
+				//else if  ( dz < -0.5*lbox.z ) dz += lbox.z;
 		
 				float distSqr = dx*dx + dy*dy + dz*dz;
 
@@ -343,17 +338,17 @@ __global__ void sep_cuda_lj(float3 params, int *neighblist, float4 *pos, float4 
 		while ( neighblist[n+offset] != -1 ){
 			int pjdx = neighblist[n+offset];
 				
-			float dx = mpx - pos[pjdx].x; //dx = sep_cuda_wrap(dx, lbox.x);
-			if ( dx > 0.5*lbox.x ) dx -= lbox.x;
-			else if  ( dx < -0.5*lbox.x ) dx += lbox.x;
+			float dx = mpx - pos[pjdx].x; dx = sep_cuda_wrap(dx, lbox.x);
+		//	if ( dx > 0.5*lbox.x ) dx -= lbox.x;
+		//	else if  ( dx < -0.5*lbox.x ) dx += lbox.x;
 	
-			float dy = mpy - pos[pjdx].y; //dy = sep_cuda_wrap(dy, lbox.y);
-			if ( dy > 0.5*lbox.y ) dy -= lbox.y;
-			else if  ( dy < -0.5*lbox.y ) dy += lbox.y;
+			float dy = mpy - pos[pjdx].y; dy = sep_cuda_wrap(dy, lbox.y);
+		//	if ( dy > 0.5*lbox.y ) dy -= lbox.y;
+		//	else if  ( dy < -0.5*lbox.y ) dy += lbox.y;
 	
-			float dz = mpz - pos[pjdx].z; //dz = sep_cuda_wrap(dz, lbox.z);
-			if ( dz > 0.5*lbox.z ) dz -= lbox.z;
-			else if  ( dz < -0.5*lbox.z ) dz += lbox.z;
+			float dz = mpz - pos[pjdx].z; dz = sep_cuda_wrap(dz, lbox.z);
+		//	if ( dz > 0.5*lbox.z ) dz -= lbox.z;
+		//	else if  ( dz < -0.5*lbox.z ) dz += lbox.z;
 	
 			float distSqr = dx*dx + dy*dy + dz*dz;
 
@@ -628,6 +623,27 @@ __global__ void sep_cuda_calc_molforce(float3 *mforce, float cf, int *neighblist
 		
 }
 
+__global__ void sep_cuda_lattice_force(const char type, float springConstant, float4 *pos, float4 *pos0, float4 *force,
+									   float3 lbox, const unsigned npart){
+
+	
+	unsigned pidx = blockDim.x * blockIdx.x + threadIdx.x;
+	int itype = __float2int_rd(force[pidx].w);
+		
+	if ( pidx < npart && itype == (int)type ){
+		
+		float dx = pos[pidx].x - pos0[pidx].x; dx = sep_cuda_wrap(dx, lbox.x);
+		float dy = pos[pidx].y - pos0[pidx].y; dy = sep_cuda_wrap(dy, lbox.y);
+		float dz = pos[pidx].z - pos0[pidx].z; dz = sep_cuda_wrap(dz, lbox.z);
+
+		force[pidx].x = - springConstant*dx;
+		force[pidx].y = - springConstant*dy;
+		force[pidx].z = - springConstant*dz;
+		
+	}
+	
+}
+
 
 // Wrapper section
 
@@ -718,4 +734,16 @@ void sep_cuda_update_neighblist(sepcupart *pptr, sepcusys *sptr, float maxcutoff
 	cudaDeviceSynchronize();
 
 }
+
+void sep_cuda_force_lattice(sepcupart *pptr, const char type, float springConstant){
+	const int nb = pptr->nblocks; 
+	const int nt = pptr->nthreads;
+	
+	sep_cuda_lattice_force<<<nb, nt>>>
+		(type, springConstant, pptr->dx, pptr->dx0, pptr->df, pptr->lbox, pptr->npart);
+		
+	cudaDeviceSynchronize();
+
+}
+
 

@@ -12,6 +12,7 @@ void sep_cuda_copy_exclusion(sepcupart *pptr);
 void sep_cuda_set_hexclusion(sepcupart *pptr, int a, int b);
 void sep_cuda_set_exclusion(sepcupart *aptr, const char rule[]);
 
+// Kernels
 __global__ 
 void sep_cuda_reset(float4 *force, float *epot, float4 *press, float4 *sumpress, float3 *energies, unsigned npart);
 
@@ -57,6 +58,10 @@ __global__ void sep_cuda_calc_molforce(float3 *mforce, float cf, int *neighblist
 										 unsigned maxneighb, int *molindex, unsigned nmols, 
 										 float3 lbox, const unsigned npart);
 
+/* Lattice forces */
+__global__ 
+void sep_cuda_lattice_force(const char type, float springConstant, float4 *pos, float4 *pos0, float4 *force,
+									   float3 lbox, const unsigned npart);
 
 
 /* Wrapper interfaces*/
@@ -66,5 +71,6 @@ void sep_cuda_force_lj(sepcupart *pptr, float params[3]);
 void sep_cuda_force_lj_sf(sepcupart *pptr, const char types[], float params[3]);
 void sep_cuda_force_sf(sepcupart *pptr, const float cf);
 void sep_cuda_update_neighblist(sepcupart *pptr, sepcusys *sptr, float maxcutoff);
+void sep_cuda_force_lattice(sepcupart *pptr, const char type, float springConstant);
 
 #endif

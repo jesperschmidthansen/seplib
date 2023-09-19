@@ -1,9 +1,9 @@
 
 #include "sepcudaintgr.h"
 
-#ifdef OCTAVE
 
-__device__ float sep_cuda_wrap(float x, float lbox){
+
+__inline__ __device__ float sep_cuda_wrap(float x, float lbox){
 	
 	if ( x > 0.5*lbox ) 
 		x -= lbox;
@@ -13,7 +13,7 @@ __device__ float sep_cuda_wrap(float x, float lbox){
 	return x;
 }
 
-__device__ float sep_cuda_periodic(float x, float lbox, int *crossing){
+__inline__ __device__ float sep_cuda_periodic(float x, float lbox, int *crossing){
 	
 	if ( x > lbox ) {
 		x -= lbox;  
@@ -27,7 +27,7 @@ __device__ float sep_cuda_periodic(float x, float lbox, int *crossing){
 	return x;
 }
 
-#endif
+
 
 __global__ void sep_cuda_leapfrog(float4 *pos, float4 *vel, 
 		  float4 *force, float *dist, int3 *crossing, float dt, float3 lbox, unsigned npart){
