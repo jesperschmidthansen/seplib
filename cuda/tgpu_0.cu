@@ -14,7 +14,8 @@ int main(int argc, char **argv){
 	sepcusys *sptr = sep_cuda_sys_setup(ptr);
 
 	float ljparam[3]={1.0,1.0,2.5};
-		
+	//float ljparam[4]={1.0,1.0,2.5,1.0};
+
 	int n=0; int nloops = 100000; 
 	while ( n<nloops ){
 		
@@ -23,7 +24,7 @@ int main(int argc, char **argv){
 		if ( n%10==0 )	sep_cuda_update_neighblist(ptr, sptr, 2.5);
 		
 		sep_cuda_force_lj(ptr, ljparam);
-
+		//sep_cuda_force_lj(ptr, "AA", ljparam);
 		sep_cuda_integrate_leapfrog(ptr, sptr);
 		
 		n++;

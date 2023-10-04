@@ -21,6 +21,8 @@ void action_integrate(const octave_value_list& args);
 void action_save(const octave_value_list& args);
 void action_clear(void);
 void action_get(octave_value_list& retval, const octave_value_list& args);
+void action_set(const octave_value_list& args);
+void action_thermostat(const octave_value_list& args);
 
 
 DEFUN_DLD(cmolsim, args, , HELP){
@@ -43,6 +45,10 @@ DEFUN_DLD(cmolsim, args, , HELP){
 			action_save(args); break;
 		case CLEAR:
 			action_clear();	break;
+		case SET:
+			action_set(args); break; 
+		case THERMOSTAT:
+			action_thermostat(args); break;
 		default:
 			octave_stdout << "Not a valid action\n";
 	}
@@ -54,8 +60,9 @@ DEFUN_DLD(cmolsim, args, , HELP){
 
 unsigned hashfun(const std::string key){
 
+  const size_t lvec = key.length();	
   unsigned sum_char = 0;
-  for ( size_t n=0; n<key.length(); n++ ) sum_char += (unsigned)key[n];
+  for ( size_t n=0; n<lvec; n++ ) sum_char += (unsigned)key[n];
   
   return sum_char;
 
@@ -72,6 +79,8 @@ void action_load(const octave_value_list& args){
 	else if ( strcmp(specifier.c_str(), "top")==0 ){
 		load_top(filename.c_str());
 	}
+	else 
+		error("Something went wrong with input for action 'load'");
 
 }
 
@@ -96,9 +105,38 @@ void action_calcforce(const octave_value_list& args){
 	  force_lj(types.c_str(), ljparam);
 	}
 	else if ( strcmp(specifier.c_str(), "coulomb")==0 && (args.length()==4 || args.length()==5) ) {
+		const std::string method = args(2).string_value();	// Not yet supported
 		float cf = args(3).scalar_value();
 		force_coulomb(cf);
 	}
+	else if ( strcmp(specifier.c_str(), "bond")==0 && args.length()==5 ){
+		int type = args(2).int_value();
+		float lbond = args(3).scalar_value();
+		float ks = args(4).scalar_value();
+
+		force_bond(type, lbond, ks);			
+	}
+	else if ( strcmp(specifier.c_str(), "angle")==0 && args.length()==5 ){
+		int type = args(2).int_value();
+		float angle = args(3).scalar_value();
+		float kangle = args(4).scalar_value();
+
+		force_angle(type, angle, kangle);
+	}
+	else if ( (strcmp(specifier.c_str(), "torsion")==0 || strcmp(specifier.c_str(), "dihedral")==0) && args.length()==4 ){
+		int type = args(2).int_value();
+		RowVector octparams = args(3).vector_value();
+		
+		if ( octparams.numel() != 6 )
+			error("Torsion/dihedral potential needs 6 parameters");
+
+		float params[6]; for ( int n=0; n<6; n++ ) params[n] = octparams(n);
+			
+		force_torsion(type, params);
+	}
+	else	
+		error("Something went wrong with input to specifier 'calcforce'");
+
 }
 
 void action_integrate(const octave_value_list& args){
@@ -108,6 +146,8 @@ void action_integrate(const octave_value_list& args){
 	if ( strcmp(specifier.c_str(), "leapfrog")==0 ){
 		integrate_leapfrog();		
 	}
+	else 
+		error("Something went wrong with input for action 'integrate'");
 
 }
 
@@ -124,10 +164,47 @@ void action_get(octave_value_list& retval, const octave_value_list& args){
 	else if ( strcmp(specifier.c_str(), "pressure")==0 ){
 		double press[4];
 		get_pressure(press);
-		RowVector pr(4);
-		for ( int k=0; k<4; k++ ) pr(k)=press[k];
+		RowVector pr(4);for ( int k=0; k<4; k++ ) pr(k)=press[k];
+		
 		retval.append(pr);	
 	}
+	else 
+		error("Something went wrong with input for action 'get'");
+
+}
+
+void action_set(const octave_value_list& args){
+
+	const std::string specifier = args(1).string_value();
+	
+	if ( strcmp(specifier.c_str(), "exclusion")==0 && args.length()==3 ){
+		const std::string exclusion = args(2).string_value();
+		if ( strcmp(exclusion.c_str(), "molecule") == 0  )
+			set_exlusion_molecule(exclusion.c_str());
+		else	
+			error("Something went wrong with input for specifier 'exclusion'");
+	}
+	else if ( strcmp(specifier.c_str(), "timestep")==0 && args.length()==3 ){
+		float dt = args(2).scalar_value();
+		set_timestep(dt);
+	}
+	else 
+		error("Something went wrong with input for action 'set'");
+}
+
+void action_thermostat(const octave_value_list& args){
+
+	const std::string specifier = args(1).string_value();
+
+	if ( strcmp(specifier.c_str(), "nosehoover")==0 && args.length()==5 ){
+		const std::string type  =  args(2).string_value(); // Still not supported in sepcuda
+	  	float temp0 = args(3).scalar_value();
+		float thermostatmass = args(4).scalar_value();
+
+		thermostat_nh(temp0, thermostatmass);
+	}
+	else 
+		error("Something went wrong with input for action 'thermostat'");
 }
 
 void action_save(const octave_value_list& args){

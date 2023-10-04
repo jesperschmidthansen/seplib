@@ -30,7 +30,8 @@ int resetmomentumfreq = -1;
 int ensemble = 0; // 0: nve, 1: nvt 
 
 bool init = false, initmol = false;
-bool needneighbupdate = true;
+
+
 
 
 void load_xyz(const char file[]){
@@ -84,12 +85,8 @@ void reset_momentum(int freq){
 
 void force_lj(const char *types, float *ljparams){
 	
-	if ( needneighbupdate && iterationnumber%neighbupdatefreq == 0 )
-		sep_cuda_update_neighblist(pptr, sptr, maxcutoff);
-	
 	sep_cuda_force_lj(pptr, types, ljparams);
 	
-	needneighbupdate = false;
 }
 
 void force_coulomb(float cf){
@@ -98,12 +95,29 @@ void force_coulomb(float cf){
 	
 }
 
+void force_bond(int type, float lbond, float ks){
+
+	sep_cuda_force_harmonic(pptr, mptr, type, ks, lbond);
+
+}
+
+void force_angle(int type, float angle, float kangle){
+
+	sep_cuda_force_angle(pptr, mptr, type, kangle, angle);
+
+}
+
+void force_torsion(int type, float *params){
+	
+	sep_cuda_force_dihedral(pptr, mptr, type, params);
+
+}
+
 void integrate_leapfrog(void){
 	
 	sep_cuda_integrate_leapfrog(pptr, sptr);
 	
 	iterationnumber ++;
-	needneighbupdate = true;
 		
 	if ( resetmomentumfreq >= 0 && resetmomentumfreq%iterationnumber==0 )
 		sep_cuda_reset_momentum(pptr);
@@ -142,4 +156,17 @@ void get_energies(double *energypointer){
 	
 	energypointer[0] = sptr->ekin;
 	energypointer[1] = sptr->epot;
+
+}
+
+void set_exlusion_molecule(const char rule[]){
+
+	sep_cuda_set_exclusion(pptr, rule);
+
+}
+
+void set_timestep(float dt){
+
+	sptr->dt = dt;
+
 }

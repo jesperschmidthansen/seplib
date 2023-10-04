@@ -1,5 +1,31 @@
 #include "sepcudamol.h"
 
+// Device functions
+
+__device__ float sep_cuda_mol_dot(float4 a){
+	
+	return (a.x*a.x + a.y*a.y + a.z*a.z);
+	
+}
+
+__device__ float sep_cuda_mol_dot(float3 a, float3 b){
+	
+	return (a.x*b.x + a.y*b.y + a.z*b.z);
+	
+}
+
+__device__ float sep_cuda_mol_wrap(float x, float lbox){
+	
+	if ( x > 0.5*lbox ) 
+		x -= lbox;
+	else if  ( x < -0.5*lbox ) 
+		x += lbox;
+	
+	return x;
+}
+
+
+
 sepcumol * sep_cuda_init_mol(void){
 	
 	sepcumol *mptr = (sepcumol *)malloc(sizeof(sepcumol));
@@ -586,32 +612,6 @@ __global__ void sep_cuda_calc_forceonmol(float3 *df, float3 *dfij, unsigned nmol
 
 
 }
-
-
-// Device functions
-
-__device__ float sep_cuda_mol_dot(float4 a){
-	
-	return (a.x*a.x + a.y*a.y + a.z*a.z);
-	
-}
-
-__device__ float sep_cuda_mol_dot(float3 a, float3 b){
-	
-	return (a.x*b.x + a.y*b.y + a.z*b.z);
-	
-}
-
-__device__ float sep_cuda_mol_wrap(float x, float lbox){
-	
-	if ( x > 0.5*lbox ) 
-		x -= lbox;
-	else if  ( x < -0.5*lbox ) 
-		x += lbox;
-	
-	return x;
-}
-
 
 void sep_cuda_force_harmonic(sepcupart *pptr, sepcumol *mptr, int type, float ks, float lbond){
 	int nb = mptr->nbondblocks; 

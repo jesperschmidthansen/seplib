@@ -20,12 +20,6 @@ for n=1:100000
 
 	cmolsim('integrate', 'leapfrog');
 
-	if rem(n,100)==0
-		energies = cmolsim('get', 'energies');
-		printf("%f %f\n", energies(1), energies(2));
-		fflush(stdout);
-	endif
-
 end
 
 cmolsim('save', 'test.xyz');
