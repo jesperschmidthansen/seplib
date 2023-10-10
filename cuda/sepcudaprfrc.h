@@ -29,8 +29,8 @@ void sep_cuda_lj(const char type1, const char type2, float4 params, int *neighbl
 
 /* Pair interactions - all types have same interactions (faster) */
 __global__ 
-void sep_cuda_lj(float3 params, int *neighblist, float4 *pos, float4 *force,
-							float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart);
+void sep_cuda_lj(int *neighblist, float4 *pos, float4 *force,
+		float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart);
 
 /* Shifted force */
 __global__ 
@@ -67,7 +67,7 @@ void sep_cuda_lattice_force(const char type, float springConstant, float4 *pos, 
 /* Wrapper interfaces*/
 
 void sep_cuda_force_lj(sepcupart *pptr, const char types[], float params[4]);
-void sep_cuda_force_lj(sepcupart *pptr, float params[3]);
+void sep_cuda_force_lj(sepcupart *pptr);
 void sep_cuda_force_lj_sf(sepcupart *pptr, const char types[], float params[3]);
 void sep_cuda_force_sf(sepcupart *pptr, const float cf);
 void sep_cuda_update_neighblist(sepcupart *pptr, sepcusys *sptr, float maxcutoff);

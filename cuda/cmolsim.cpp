@@ -188,6 +188,14 @@ void action_set(const octave_value_list& args){
 		float dt = args(2).scalar_value();
 		set_timestep(dt);
 	}
+	else if ( strcmp(specifier.c_str(), "momresetfrq")==0 ){
+		int resetfreq = args(2).int_value();
+		reset_momentum(resetfreq);
+	}
+	else if ( strcmp(specifier.c_str(), "cutoff")==0 ){
+		float cf = args(2).scalar_value();
+		set_maximum_cf(cf);	
+	}
 	else 
 		error("Something went wrong with input for action 'set'");
 }

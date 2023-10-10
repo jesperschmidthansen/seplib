@@ -26,3 +26,5 @@ void get_energies(double *energies);
 
 void set_exlusion_molecule(const char rule[]);
 void set_timestep(float dt);
+void set_maximum_cf(float cf);
+

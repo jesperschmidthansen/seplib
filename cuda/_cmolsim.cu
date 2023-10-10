@@ -32,8 +32,6 @@ int ensemble = 0; // 0: nve, 1: nvt
 bool init = false, initmol = false;
 
 
-
-
 void load_xyz(const char file[]){
 	
 	pptr = sep_cuda_load_xyz(file);
@@ -65,6 +63,7 @@ void free_memory(void){
 	
 	if ( init ) {
 		sep_cuda_free_memory(pptr, sptr);
+
 		init = false;
 	}
 }
@@ -134,7 +133,7 @@ void thermostat_nh(float temp0, float mass){
 	
 	ensemble = 1;
 	sep_cuda_thermostat_nh(pptr, sptr, temp0, mass);
-	
+
 }
 
 void get_pressure(double *presspointer){
@@ -170,3 +169,9 @@ void set_timestep(float dt){
 	sptr->dt = dt;
 
 }
+
+void set_maximum_cf(float cf){
+	
+	maxcutoff = cf;
+}
+

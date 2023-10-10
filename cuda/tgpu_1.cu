@@ -25,7 +25,6 @@ int main(int argc, char **argv){
 
 	sepcugh *ghptr = sep_cuda_sample_gh_init(sptr, 100, 5, 10*sptr->dt);
 	
-	float ljparam[3] = {1.0, 1.0, 2.5};
 	float dump[3];
 	float temp0 = 2.0; 	char filestr[100];
 	int n = 0; int nloops = 100000; bool update = true; int updatecounter = 0; int counter = 0;
@@ -46,7 +45,7 @@ int main(int argc, char **argv){
 
 		if ( update ) { updatecounter++; sep_cuda_update_neighblist(ptr, sptr, 2.5); }
 	
-		sep_cuda_force_lj(ptr, ljparam);
+		sep_cuda_force_lj(ptr);
 			
 		if ( atoi(argv[1])==1 )	sep_cuda_thermostat_nh(ptr, sptr, temp0, 0.1);	
 

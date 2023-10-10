@@ -305,19 +305,17 @@ __global__ void sep_cuda_lj(const char type1, const char type2, float4 params, i
 
 
 /* Pair interactions - all types have same interactions (faster) */
-__global__ void sep_cuda_lj(float3 params, int *neighblist, float4 *pos, float4 *force,
-						float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart){
+__global__ void sep_cuda_lj(int *neighblist, float4 *pos, float4 *force,
+				float *epot, float4 *press, unsigned maxneighb, float3 lbox, const unsigned npart){
 
 
 	int pidx = blockDim.x * blockIdx.x + threadIdx.x;
 
 	if ( pidx < npart ) {
 
-		float sigma = params.x; 
-		float epsilon = params.y; 
-		float cf = params.z; 
+		float cf = 2.5; 
 		float cfsqr = cf*cf;
-		float Epot_shift = 4.0*epsilon*(powf(sigma/cf, 12.) - powf(sigma/cf,6.));
+		float Epot_shift = 4.0*(powf(1.0/cf, 12.) - powf(1.0/cf,6.));
 
 		int offset = pidx*maxneighb;
 			
@@ -332,27 +330,19 @@ __global__ void sep_cuda_lj(float3 params, int *neighblist, float4 *pos, float4 
 			int pjdx = neighblist[n+offset];
 				
 			float dx = mpx - pos[pjdx].x; dx = sep_cuda_wrap(dx, lbox.x);
-			//if ( dx > 0.5*lbox.x ) dx -= lbox.x;
-			//else if  ( dx < -0.5*lbox.x ) dx += lbox.x;
-	
 			float dy = mpy - pos[pjdx].y; dy = sep_cuda_wrap(dy, lbox.y);
-			//if ( dy > 0.5*lbox.y ) dy -= lbox.y;
-			//else if  ( dy < -0.5*lbox.y ) dy += lbox.y;
-	
 			float dz = mpz - pos[pjdx].z; dz = sep_cuda_wrap(dz, lbox.z);
-			//if ( dz > 0.5*lbox.z ) dz -= lbox.z;
-			//else if  ( dz < -0.5*lbox.z ) dz += lbox.z;
 	
 			float distSqr = dx*dx + dy*dy + dz*dz;
 
 			if ( distSqr < cfsqr ) {
-				float rri = sigma*sigma/distSqr; 
+				float rri = 1.0/distSqr; 
 				float rri3 = rri*rri*rri;
-				float ft =  48.0*epsilon*rri3*(rri3 - 0.5)*rri; 
+				float ft =  48.0*rri3*(rri3 - 0.5)*rri; 
 				
 				Fx += ft*dx; Fy += ft*dy; Fz += ft*dz;
 			
-			   	Epot += 0.5*(4.0*epsilon*rri3*(rri3 - 1.0) - Epot_shift);
+			   	Epot += 0.5*(4.0*rri3*(rri3 - 1.0) - Epot_shift);
 				mpress.x += dx*ft*dx + dy*ft*dy + dz*ft*dz; 
 				mpress.y += dx*ft*dy; mpress.z += dx*ft*dz; mpress.w += dy*ft*dz;
 			}
@@ -661,14 +651,12 @@ void sep_cuda_force_lj(sepcupart *pptr, const char types[], float params[4]){
 
 }
 
-void sep_cuda_force_lj(sepcupart *pptr, float params[3]){
+void sep_cuda_force_lj(sepcupart *pptr){
 	const int nb = pptr->nblocks; 
 	const int nt = pptr->nthreads;
 	
-	float3 ljparams = make_float3(params[0],params[1],params[2]);
-	
 	sep_cuda_lj<<<nb, nt>>>
-		(ljparams, pptr->neighblist, pptr->dx, pptr->df, pptr->epot, pptr->press, pptr->maxneighb, pptr->lbox, pptr->npart);
+		(pptr->neighblist, pptr->dx, pptr->df, pptr->epot, pptr->press, pptr->maxneighb, pptr->lbox, pptr->npart);
 		
 	cudaDeviceSynchronize();
 
