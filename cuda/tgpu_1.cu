@@ -60,7 +60,7 @@ int main(int argc, char **argv){
 		}
 				
 		
-		if ( n%100 == 0 ){
+		if ( n%1000 == 0 ){
 			double normalpress, shearpress[3];
 			sep_cuda_get_pressure(&normalpress, shearpress, ptr);
 			sep_cuda_get_energies(ptr, sptr, ensemble);

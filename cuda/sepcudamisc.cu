@@ -313,7 +313,7 @@ __global__ void sep_cuda_setvalue(int *variable, int value){
 
 __global__ void sep_cuda_sumenergies(float3 *totalsum, float4* dx, float4 *dv, float4 *df, 
 									 float dt, float *epot, unsigned npart){
-	
+
 	int id = blockIdx.x*blockDim.x + threadIdx.x;
 	__shared__ float3 sums;
 	
@@ -321,9 +321,8 @@ __global__ void sep_cuda_sumenergies(float3 *totalsum, float4* dx, float4 *dv, f
 		sums.x = sums.y = sums.z = 0.0f;
 	}
 	__syncthreads();
-	
+
 	if ( id < npart ){
-		
 		float4 vel; 
 		vel.x =  dv[id].x - 0.5*dt*df[id].x/dx[id].w;
 		vel.y =  dv[id].y - 0.5*dt*df[id].y/dx[id].w;
