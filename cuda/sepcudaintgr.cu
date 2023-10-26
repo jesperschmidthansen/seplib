@@ -132,34 +132,34 @@ __global__ void sep_cuda_nosehoover(float *alpha, float4 *pos, float4 *vel, floa
 	}
 }
 
-void sep_cuda_thermostat_nh(sepcupart *pptr, sepcusys *sptr, float temp0, float tau){
-	const int nb = sptr->nblocks; 
-	const int nt = sptr->nthreads;
+void sep_cuda_thermostat_nh(sepcupart *pptr, float temp0, float tau){
+	const int nb = pptr->sptr->nblocks; 
+	const int nt = pptr->sptr->nthreads;
 	
 	// Get current system kinetic energy
 	sep_cuda_sumenergies<<<nb,nt>>>
-		(sptr->denergies, pptr->dx, pptr->dv, pptr->df, sptr->dt, pptr->epot, sptr->npart);
+		(pptr->sptr->denergies, pptr->dx, pptr->dv, pptr->df, pptr->sptr->dt, pptr->epot, pptr->sptr->npart);
 	cudaDeviceSynchronize();
 	
 	// Update nh-alpha dynamics (single thread)
 	sep_cuda_update_nosehoover<<<1,1>>>
-		(sptr->dalpha, sptr->denergies, temp0, tau, sptr->dt, sptr->npart);
+		(pptr->sptr->dalpha, pptr->sptr->denergies, temp0, tau, pptr->sptr->dt, pptr->sptr->npart);
 	cudaDeviceSynchronize();
 
 	// Add thermostat force
 	sep_cuda_nosehoover<<<nb, nt>>>
-		(sptr->dalpha, pptr->dx, pptr->dv, pptr->df, sptr->npart);
+		(pptr->sptr->dalpha, pptr->dx, pptr->dv, pptr->df, pptr->sptr->npart);
 	cudaDeviceSynchronize();		
 	
 }
 
    
-void sep_cuda_integrate_leapfrog(sepcupart *pptr, sepcusys *sptr){
-	const int nb = sptr->nblocks; 
-	const int nt = sptr->nthreads;
+void sep_cuda_integrate_leapfrog(sepcupart *pptr){
+	const int nb = pptr->sptr->nblocks; 
+	const int nt = pptr->sptr->nthreads;
 
 	sep_cuda_leapfrog<<<nb, nt>>>
-		(pptr->dx, pptr->dv, pptr->df, pptr->ddist, pptr->dcrossings, sptr->dt, pptr->lbox, pptr->npart);
+		(pptr->dx, pptr->dv, pptr->df, pptr->ddist, pptr->dcrossings, pptr->sptr->dt, pptr->lbox, pptr->npart);
 	cudaDeviceSynchronize();
 	
 }

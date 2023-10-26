@@ -6,7 +6,7 @@
 #include "sepcudamisc.h"
 #include <stdlib.h>
 
-bool sep_cuda_check_neighblist(sepcupart *ptr, float maxdist);
+bool sep_cuda_check_neighblist(sepcupart *ptr, float skin);
 void sep_cuda_reset_exclusion(sepcupart *pptr);
 void sep_cuda_copy_exclusion(sepcupart *pptr);
 void sep_cuda_set_hexclusion(sepcupart *pptr, int a, int b);
@@ -70,7 +70,7 @@ void sep_cuda_force_lj(sepcupart *pptr, const char types[], float params[4]);
 void sep_cuda_force_lj(sepcupart *pptr);
 void sep_cuda_force_lj_sf(sepcupart *pptr, const char types[], float params[3]);
 void sep_cuda_force_sf(sepcupart *pptr, const float cf);
-void sep_cuda_update_neighblist(sepcupart *pptr, sepcusys *sptr, float maxcutoff);
+void sep_cuda_update_neighblist(sepcupart *pptr, float maxcutoff);
 void sep_cuda_force_lattice(sepcupart *pptr, const char type, float springConstant);
 
 #endif

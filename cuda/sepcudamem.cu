@@ -80,8 +80,14 @@ sepcupart* sep_cuda_allocate_memory(unsigned npartPadding){
 	return ptr;
 }
 
-void sep_cuda_free_memory(sepcupart *ptr, sepcusys *sptr){
+void sep_cuda_free_memory(sepcupart *ptr){
+		
+	// System structure
+	cudaFree(ptr->sptr->denergies); cudaFreeHost(ptr->sptr->henergies);
+	cudaFree(ptr->sptr->dalpha); cudaFree(ptr->sptr->dupdate); 
 	
+	cudaFreeHost(ptr->sptr);
+
 	// Particle structure
 	cudaFreeHost(ptr->hx); 	cudaFreeHost(ptr->hv); 
 	cudaFreeHost(ptr->hf); 	cudaFreeHost(ptr->hx0);
@@ -95,14 +101,7 @@ void sep_cuda_free_memory(sepcupart *ptr, sepcusys *sptr){
 	
 	cudaFree(ptr->dexclusion); cudaFree(ptr->dcrossings); cudaFree(ptr->dmolindex);
 	
-	
 	cudaFreeHost(ptr);
-	
-	// System structure
-	cudaFree(sptr->denergies); cudaFreeHost(sptr->henergies);
-	cudaFree(sptr->dalpha); cudaFree(sptr->dupdate); 
-	
-	cudaFreeHost(sptr);
 }
 
 

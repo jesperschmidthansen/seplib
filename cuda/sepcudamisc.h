@@ -26,7 +26,7 @@ float sep_cuda_dot_host(float3 a);
 /* Kernel functions */
 __global__ void sep_cuda_set_prevpos(float4 *p, float4 *pprev, unsigned npart);
 __global__ void sep_cuda_calc_dist(float *dist, float4 *p, float4 *pprev, float3 lbox, unsigned npart);
-__global__ void sep_cuda_sumdistance(float *totalsum, float *dist, float maxdist, unsigned npart);
+__global__ void sep_cuda_sumdistance(float *totalsum, float *dist, unsigned npart);
 __global__ void sep_cuda_setvalue(float *variable, float value);
 __global__ void sep_cuda_reset(float4 *force, float *epot, float4 *press, float4 *sumpress, float3 *energies, unsigned npart);
 __global__ void sep_cuda_reset_mol(float3 *force, unsigned nmol);
@@ -38,7 +38,7 @@ __global__ void sep_cuda_sumenergies(float3 *totalsum, float4* dx, float4 *dv, f
 __global__ void sep_cuda_getpress(float4 *press, float4 *pos, float4 *vel, float4 *ppress, int npart);
 
 /* Wrapper interface */
-void sep_cuda_reset_iteration(sepcupart *pptr, sepcusys *sptr);
+void sep_cuda_reset_iteration(sepcupart *pptr);
 void sep_cuda_get_energies(sepcupart *ptr, sepcusys *sptr, const char ensemble[]);
 
 #endif

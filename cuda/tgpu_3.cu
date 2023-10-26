@@ -13,22 +13,22 @@ int main(void){
 	int n=0; int nloops = 100000; 
 	while ( n<nloops ){
 		
-		sep_cuda_reset_iteration(ptr, sptr);
+		sep_cuda_reset_iteration(ptr);
 
-		if ( n%10==0 )	sep_cuda_update_neighblist(ptr, sptr, 2.5);
+		if ( n%10==0 )	sep_cuda_update_neighblist(ptr, 2.5);
 		
 		sep_cuda_force_lj(ptr);
 		sep_cuda_force_lattice(ptr, 'w', 1000.0);
 		
-		sep_cuda_thermostat_nh(ptr, sptr, 1.0, 0.1);
-		sep_cuda_integrate_leapfrog(ptr, sptr);
+		sep_cuda_thermostat_nh(ptr, 1.0, 0.1);
+		sep_cuda_integrate_leapfrog(ptr);
 		
 		n++;
 	}
 	
 	sep_cuda_save_xyz(ptr, "test.xyz");
 	
-	sep_cuda_free_memory(ptr, sptr);
+	sep_cuda_free_memory(ptr);
 	
 	return 0;
 }

@@ -57,10 +57,10 @@ int main(void){
 	for ( int n=0; n<nloops; n++ ){
 
 	
-		sep_cuda_reset_iteration(aptr, sptr);
+		sep_cuda_reset_iteration(aptr);
 		
 		if ( n%10==0 ){
-			sep_cuda_update_neighblist(aptr, sptr, 3.5);
+			sep_cuda_update_neighblist(aptr, 3.5);
 		}
 		
 		sep_cuda_force_lj(aptr, "CC", ljparamCC);
@@ -83,8 +83,8 @@ int main(void){
 		sep_cuda_force_dihedral(aptr, mptr, 0, rbparam0);
 		sep_cuda_force_dihedral(aptr, mptr, 1, rbparam1);
 
-		sep_cuda_thermostat_nh(aptr, sptr, 3.86, 0.1);
-		sep_cuda_integrate_leapfrog(aptr, sptr);
+		sep_cuda_thermostat_nh(aptr, 3.86, 0.1);
+		sep_cuda_integrate_leapfrog(aptr);
 	
 	
 		if ( n%10 ==0 ){
@@ -102,7 +102,7 @@ int main(void){
 
 	sep_cuda_save_xyz(aptr, "test.xyz");
 	
-	sep_cuda_free_memory(aptr, sptr);
+	sep_cuda_free_memory(aptr);
 	sep_cuda_sample_gh_free(ghptr);
 
 	sep_cuda_free_bonds(mptr);

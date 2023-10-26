@@ -29,10 +29,10 @@ int main(void){
 	int nloops = 1000000; int counter = 0; char filestr[100];
 	for ( int n=0; n<nloops; n++ ){
 	
-		sep_cuda_reset_iteration(aptr, sptr);
+		sep_cuda_reset_iteration(aptr);
 		
 		if ( n%10==0 ){
-			sep_cuda_update_neighblist(aptr, sptr, 2.9);
+			sep_cuda_update_neighblist(aptr, 2.9);
 		}
 		
 		sep_cuda_force_lj(aptr, "OO", ljparam);
@@ -41,8 +41,8 @@ int main(void){
 		sep_cuda_force_harmonic(aptr, mptr, 0, 68000, 0.316);
 		sep_cuda_force_angle(aptr, mptr, 0, 490 , 1.97);
 		
-		sep_cuda_thermostat_nh(aptr, sptr, 3.86, 0.1);
-		sep_cuda_integrate_leapfrog(aptr, sptr);
+		sep_cuda_thermostat_nh(aptr, 3.86, 0.1);
+		sep_cuda_integrate_leapfrog(aptr);
 
 		if ( n%sintdip==0 )
 		 	sep_cuda_sample_dipole(polcorr, aptr, sptr, mptr);
@@ -76,7 +76,7 @@ int main(void){
 	sep_cuda_sample_stress_free(stresscorr); 
 	sep_cuda_sample_dipole_free(polcorr);
 	
-	sep_cuda_free_memory(aptr, sptr);
+	sep_cuda_free_memory(aptr);
 	
 	sep_cuda_free_bonds(mptr);
 	sep_cuda_free_angles(mptr);

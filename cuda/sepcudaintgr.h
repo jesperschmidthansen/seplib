@@ -14,8 +14,8 @@ __global__ void sep_cuda_nosehoover(float *alpha, float4 *pos, float4 *vel, floa
 
 
 /* Wrapper interfaces */
-void sep_cuda_thermostat_nh(sepcupart *pptr, sepcusys *sptr, float temp0, float tau);
+void sep_cuda_thermostat_nh(sepcupart *pptr, float temp0, float tau);
    
-void sep_cuda_integrate_leapfrog(sepcupart *pptr, sepcusys *sptr);
+void sep_cuda_integrate_leapfrog(sepcupart *pptr);
 
 #endif

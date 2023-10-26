@@ -41,15 +41,15 @@ int main(int argc, char **argv){
 			counter ++;
 		}
 		
-		sep_cuda_reset_iteration(ptr, sptr);
+		sep_cuda_reset_iteration(ptr);
 
-		if ( update ) { updatecounter++; sep_cuda_update_neighblist(ptr, sptr, 2.5); }
+		if ( update ) { updatecounter++; sep_cuda_update_neighblist(ptr, 2.5); }
 	
 		sep_cuda_force_lj(ptr);
 			
-		if ( atoi(argv[1])==1 )	sep_cuda_thermostat_nh(ptr, sptr, temp0, 0.1);	
+		if ( atoi(argv[1])==1 )	sep_cuda_thermostat_nh(ptr, temp0, 0.1);	
 
-		sep_cuda_integrate_leapfrog(ptr, sptr);
+		sep_cuda_integrate_leapfrog(ptr);
 		
 		if ( n%100==0 ) sep_cuda_reset_momentum(ptr);
 			
@@ -77,7 +77,7 @@ int main(int argc, char **argv){
 	sep_cuda_save_xyz(ptr, "test.xyz");
 	
 	sep_cuda_sample_gh_free(ghptr);
-	sep_cuda_free_memory(ptr, sptr);
+	sep_cuda_free_memory(ptr);
 	
 	return 0;
 }

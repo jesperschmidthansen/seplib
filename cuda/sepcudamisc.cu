@@ -312,7 +312,7 @@ __global__ void sep_cuda_calc_dist(float *dist, float4 *p, float4 *pprev, float3
 
 }
 
-__global__ void sep_cuda_sumdistance(float *totalsum, float *dist, float maxdist, unsigned npart){
+__global__ void sep_cuda_sumdistance(float *totalsum, float *dist, unsigned npart){
 	
 	__shared__ float sum;
 	if (threadIdx.x==0) sum=.0f;
@@ -443,20 +443,20 @@ __global__ void sep_cuda_reset_mol_fij(float3 *force, unsigned nmol){
 
 
 // Wrapper/interface functions
-void sep_cuda_reset_iteration(sepcupart *pptr, sepcusys *sptr){
-	const int nb = sptr->nblocks; 
-	const int nt = sptr->nthreads;
+void sep_cuda_reset_iteration(sepcupart *pptr){
+	const int nb = pptr->sptr->nblocks; 
+	const int nt = pptr->sptr->nthreads;
 
 	sep_cuda_reset<<<nb,nt>>>
-			(pptr->df, pptr->epot, pptr->press, pptr->sumpress, sptr->denergies, pptr->npart);
+			(pptr->df, pptr->epot, pptr->press, pptr->sumpress, pptr->sptr->denergies, pptr->npart);
 	
-	if ( sptr->molprop && pptr->sptr->iteration%pptr->sptr->molpropinterval==0 ){	
-		sep_cuda_reset_mol_fij<<<nb,nt>>>(sptr->mptr->dfij, sptr->mptr->nmols);
+	if ( pptr->sptr->molprop && pptr->sptr->iteration%pptr->sptr->molpropinterval==0 ){	
+		sep_cuda_reset_mol_fij<<<nb,nt>>>(pptr->sptr->mptr->dfij, pptr->sptr->mptr->nmols);
 	}
 	
-	sptr->iteration ++;
+	pptr->sptr->iteration ++;
 
-	sptr->cmflag = false;
+	pptr->sptr->cmflag = false;
 	
 	cudaDeviceSynchronize();
 
