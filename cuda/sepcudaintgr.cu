@@ -77,7 +77,7 @@ __global__ void sep_cuda_leapfrog(float4 *pos, float4 *vel,
 
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
 	
-	float4 oldpos = make_float4(pos[i].x, pos[i].y, pos[i].z, 0.0f);
+	//float4 oldpos = make_float4(pos[i].x, pos[i].y, pos[i].z, 0.0f);
 	float4 mypos = make_float4(pos[i].x, pos[i].y, pos[i].z, pos[i].w);
 
 	if ( i < npart ) {
@@ -96,11 +96,13 @@ __global__ void sep_cuda_leapfrog(float4 *pos, float4 *vel,
 		mypos.z += vel[i].z*dt;
 		mypos.z = sep_cuda_periodic(mypos.z, lbox.z, &(crossing[i].z));
 					
-		float dx = oldpos.x - mypos.x; dx = sep_cuda_wrap(dx, lbox.x);
-		float dy = oldpos.y - mypos.y; dy = sep_cuda_wrap(dy, lbox.y);
-		float dz = oldpos.z - mypos.z; dz = sep_cuda_wrap(dz, lbox.z);
+		/*
+		   float dx = oldpos.x - mypos.x; dx = sep_cuda_wrap(dx, lbox.x);
+			float dy = oldpos.y - mypos.y; dy = sep_cuda_wrap(dy, lbox.y);
+			float dz = oldpos.z - mypos.z; dz = sep_cuda_wrap(dz, lbox.z);
 	
-		dist[i] += sqrtf(dx*dx + dy*dy + dz*dz);
+			dist[i] += sqrtf(dx*dx + dy*dy + dz*dz);
+		*/
 
 		pos[i].x = mypos.x; pos[i].y = mypos.y; pos[i].z = mypos.z;
 	}

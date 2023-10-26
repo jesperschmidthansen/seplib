@@ -49,6 +49,9 @@ sepcupart* sep_cuda_allocate_memory(unsigned npartPadding){
 	if ( cudaMalloc((void **)&(ptr->dx0), nbytes) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
+	if ( cudaMalloc((void **)&(ptr->dxprev), nbytes) == cudaErrorMemoryAllocation )
+		sep_cuda_mem_error();
+	
 	if ( cudaMalloc((void **)&(ptr->ddist), npartPadding*sizeof(float)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
@@ -151,6 +154,7 @@ sepcupart* sep_cuda_load_xyz(const char *xyzfile){
 	sep_cuda_copy(ptr, 'c', 'd');
 	
 	cudaMemcpy(ptr->dmolindex, ptr->hmolindex, npartwithPadding*sizeof(int), cudaMemcpyHostToDevice);
+	cudaMemcpy(ptr->dxprev, ptr->hx, npartwithPadding*sizeof(float4), cudaMemcpyHostToDevice);
 
 	return ptr;
 }

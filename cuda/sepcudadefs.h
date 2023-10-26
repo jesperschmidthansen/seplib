@@ -27,6 +27,8 @@ typedef struct _sepcupart {
 	float4 *hf, *df; //fx,f,fz,type 
 	float4 *hx0, *dx0; //Virtual lattice sites, x0, y0, z0 
 	
+	float4 *dxprev; //Positions at previous neighbour list update 
+
 	unsigned maxneighb; 
 	int *neighblist; // neighb indicies + trailing -1s
 	int3 *hcrossings, *dcrossings; // Simulation box crossing

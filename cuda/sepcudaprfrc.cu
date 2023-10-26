@@ -29,8 +29,8 @@ __inline__ __device__ float sep_cuda_periodic(float x, float lbox, int *crossing
 
 bool sep_cuda_check_neighblist(sepcupart *ptr, float maxdist){
 		
-	sep_cuda_sumdistance<<<ptr->nblocks,ptr->nthreads>>>
-		(&(ptr->dsumdist), ptr->ddist, maxdist, ptr->npart);
+	sep_cuda_calc_dist<<<ptr->nblocks,ptr->nthreads>>>(ptr->ddist, ptr->dx, ptr->dxprev, ptr->lbox, ptr->npart);
+	sep_cuda_sumdistance<<<ptr->nblocks,ptr->nthreads>>>(&(ptr->dsumdist), ptr->ddist, maxdist, ptr->npart);
 	cudaDeviceSynchronize();
 	
 	float sumdr=0.0f;
@@ -40,6 +40,8 @@ bool sep_cuda_check_neighblist(sepcupart *ptr, float maxdist){
 		
 	if ( avsumdr > maxdist ){
 		sep_cuda_setvalue<<<1,1>>>(&(ptr->dsumdist), 0);
+		sep_cuda_set_prevpos<<<ptr->nblocks,ptr->nthreads>>>(ptr->dx, ptr->dxprev, ptr->npart);
+
 		cudaDeviceSynchronize();
 		return true;
 	}	

@@ -6,6 +6,17 @@ __inline__ __device__ float sep_cuda_dot(float4 a){
 	
 }
 
+__inline__  __device__ float sep_cuda_wrap(float x, float lbox){
+	
+	if ( x > 0.5*lbox ) 
+		x -= lbox;
+	else if  ( x < -0.5*lbox ) 
+		x += lbox;
+	
+	return x;
+}
+
+
 void sep_cuda_mem_error(void){
 	
 	fprintf(stderr, "Memory allocation error");
@@ -277,6 +288,29 @@ float sep_cuda_dot_host(float3 a){
 
 }
 
+// Kernel functions
+__global__ void sep_cuda_set_prevpos(float4 *p, float4 *pprev, unsigned npart){
+        int pidx = blockDim.x * blockIdx.x + threadIdx.x;
+                
+        if ( pidx < npart ){
+                pprev[pidx].x = p[pidx].x; pprev[pidx].y = p[pidx].y; pprev[pidx].z = p[pidx].z;
+        }
+
+}
+
+__global__ void sep_cuda_calc_dist(float *dist, float4 *p, float4 *pprev, float3 lbox, unsigned npart){
+
+        int pidx = blockDim.x * blockIdx.x + threadIdx.x;
+
+        if ( pidx < npart ){
+                float dx = pprev[pidx].x - p[pidx].x; dx = sep_cuda_wrap(dx, lbox.x);
+                float dy = pprev[pidx].y - p[pidx].y; dy = sep_cuda_wrap(dy, lbox.y);
+                float dz = pprev[pidx].z - p[pidx].z; dz = sep_cuda_wrap(dz, lbox.z);
+
+                dist[pidx] = sqrtf(dx*dx + dy*dy + dz*dz);
+        }
+
+}
 
 __global__ void sep_cuda_sumdistance(float *totalsum, float *dist, float maxdist, unsigned npart){
 	
