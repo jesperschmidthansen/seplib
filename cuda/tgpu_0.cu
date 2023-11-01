@@ -13,17 +13,17 @@ int main(int argc, char **argv){
 	sepcupart *ptr = sep_cuda_load_xyz(argv[1]);
 	sepcusys *sptr = sep_cuda_sys_setup(ptr);
 
-	int n=0; int nloops = 100000; bool update = true;
+	int n=0; int nloops = 100000;
 	while ( n<nloops ){
 		
 		sep_cuda_reset_iteration(ptr);
 
-		if ( update ) { sep_cuda_update_neighblist(ptr, 2.5); update = false; }
+		sep_cuda_update_neighblist(ptr, 2.5);
 		
 		sep_cuda_force_lj(ptr);
 		sep_cuda_integrate_leapfrog(ptr);
 		
-		if ( n%2==0 ) update = sep_cuda_check_neighblist(ptr, sptr->skin); 
+		if ( n%2==0 ) sep_cuda_check_neighblist(ptr, sptr->skin); 
 		
 		n++;
 	}

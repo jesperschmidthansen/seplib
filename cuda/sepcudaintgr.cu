@@ -9,7 +9,7 @@ __inline__ __device__ float sep_cuda_dot(float4 a){
 	
 }
 
-__global__ void sep_cuda_sumenergies(float3 *totalsum, float4* dx, float4 *dv, float4 *df, 
+__global__ void __SSep_cuda_sumenergies(float3 *totalsum, float4* dx, float4 *dv, float4 *df, 
 									 float dt, float *epot, unsigned npart){
 
 	int id = blockIdx.x*blockDim.x + threadIdx.x;
@@ -137,8 +137,14 @@ void sep_cuda_thermostat_nh(sepcupart *pptr, float temp0, float tau){
 	const int nt = pptr->sptr->nthreads;
 	
 	// Get current system kinetic energy
+#ifdef OCTAVE
+	__SSep_cuda_sumenergies<<<nb,nt>>>
+		(pptr->sptr->denergies, pptr->dx, pptr->dv, pptr->df, pptr->sptr->dt, pptr->epot, pptr->sptr->npart);
+#else
 	sep_cuda_sumenergies<<<nb,nt>>>
 		(pptr->sptr->denergies, pptr->dx, pptr->dv, pptr->df, pptr->sptr->dt, pptr->epot, pptr->sptr->npart);
+#endif
+
 	cudaDeviceSynchronize();
 	
 	// Update nh-alpha dynamics (single thread)

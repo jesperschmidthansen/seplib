@@ -39,6 +39,6 @@ __global__ void sep_cuda_getpress(float4 *press, float4 *pos, float4 *vel, float
 
 /* Wrapper interface */
 void sep_cuda_reset_iteration(sepcupart *pptr);
-void sep_cuda_get_energies(sepcupart *ptr, sepcusys *sptr, const char ensemble[]);
+void sep_cuda_get_energies(sepcupart *ptr, const char ensemble[]);
 
 #endif

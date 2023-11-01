@@ -84,7 +84,7 @@ void sep_cuda_free_memory(sepcupart *ptr){
 		
 	// System structure
 	cudaFree(ptr->sptr->denergies); cudaFreeHost(ptr->sptr->henergies);
-	cudaFree(ptr->sptr->dalpha); cudaFree(ptr->sptr->dupdate); 
+	cudaFree(ptr->sptr->dalpha); 
 	
 	cudaFreeHost(ptr->sptr);
 
@@ -172,9 +172,10 @@ sepcusys *sep_cuda_sys_setup(sepcupart *pptr){
 	sptr->nthreads = pptr->nthreads;
 	
 	sptr->dt = 0.005;
-	sptr->skin = 0.5;
+	sptr->skin = 0.3;
 	sptr->lbox = pptr->lbox;
 	sptr->iteration = -1;
+	sptr->neighbupdate = true;	
 
 	sptr->molprop = false;
 	sptr->molpropinterval = 0;
@@ -194,10 +195,6 @@ sepcusys *sep_cuda_sys_setup(sepcupart *pptr){
 		sep_cuda_mem_error();
 	
 	sep_cuda_setvalue<<<1,1>>>(sptr->dalpha, 0.2);
-	
-	if ( cudaMalloc((void **)&(sptr->dupdate), sizeof(int)) == cudaErrorMemoryAllocation )
-		sep_cuda_mem_error();
-	sep_cuda_setvalue<<<1,1>>>(sptr->dupdate, 1);
 	
 	return sptr;
 }

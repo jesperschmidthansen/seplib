@@ -72,9 +72,9 @@ typedef struct _sepcusys {
 	float dt;
 	float skin;
 	long iteration; 
+	bool neighbupdate;
 
-	float *dalpha; // On device <- what is this....? 
-	int *dupdate;  // Neighbourlist update? On device 
+	float *dalpha; // Nose-Hoover thermostat coupling Device only 
 
 	// Thermodynamic state of the system
 	float3 *henergies, *denergies;  // ekin, epot, momentum

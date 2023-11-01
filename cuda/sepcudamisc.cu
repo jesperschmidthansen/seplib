@@ -345,12 +345,12 @@ __global__ void sep_cuda_setvalue(int *variable, int value){
 	*variable = value;
 }
 
-__global__ void sep_cuda_sumenergies(float3 *totalsum, float4* dx, float4 *dv, float4 *df, 
+__global__ void __Sep_cuda_sumenergies(float3 *totalsum, float4* dx, float4 *dv, float4 *df, 
 									 float dt, float *epot, unsigned npart){
 
 	int id = blockIdx.x*blockDim.x + threadIdx.x;
 	__shared__ float3 sums;
-	
+
 	if ( threadIdx.x==0 ) {
 		sums.x = sums.y = sums.z = 0.0f;
 	}
@@ -464,22 +464,27 @@ void sep_cuda_reset_iteration(sepcupart *pptr){
 
 
 
-void sep_cuda_get_energies(sepcupart *ptr, sepcusys *sptr, const char ensemble[]){
+void sep_cuda_get_energies(sepcupart *ptr, const char ensemble[]){
 
 	// This summation has been done for the nh-thermostat
 	if ( strcmp("nve", ensemble)==0 ){
-		sep_cuda_sumenergies<<<sptr->nblocks,sptr->nthreads>>>
-							(sptr->denergies, ptr->dx, ptr->dv, ptr->df, sptr->dt, ptr->epot, sptr->npart);
+#ifdef OCTAVE
+		__Sep_cuda_sumenergies<<<ptr->nblocks,ptr->nthreads>>>
+							(ptr->sptr->denergies, ptr->dx, ptr->dv, ptr->df, ptr->sptr->dt, ptr->epot, ptr->sptr->npart);
+#else
+		sep_cuda_sumenergies<<<ptr->nblocks,ptr->nthreads>>>
+							(ptr->sptr->denergies, ptr->dx, ptr->dv, ptr->df, ptr->sptr->dt, ptr->epot, ptr->sptr->npart);
+#endif
 		cudaDeviceSynchronize();
 	}
 	
-	sep_cuda_copy_energies(sptr);
+	sep_cuda_copy_energies(ptr->sptr);
 			
-	sptr->ekin = (sptr->henergies->x)/sptr->npart;
-	sptr->epot = (sptr->henergies->y)/sptr->npart;
+	ptr->sptr->ekin = (ptr->sptr->henergies->x)/ptr->sptr->npart;
+	ptr->sptr->epot = (ptr->sptr->henergies->y)/ptr->sptr->npart;
 	
-	sptr->etot = sptr->ekin + sptr->epot;
-	sptr->temp = 2./3*sptr->ekin;
+	ptr->sptr->etot = ptr->sptr->ekin + ptr->sptr->epot;
+	ptr->sptr->temp = 2./3*ptr->sptr->ekin;
 }
 
 

@@ -6,9 +6,9 @@
 int main(void){
 
 	sepcupart *aptr = sep_cuda_load_xyz("start_water.xyz");
-	sepcusys *sptr = sep_cuda_sys_setup(aptr);
-	
+	sepcusys *sptr = sep_cuda_sys_setup(aptr);	
 	sepcumol *mptr = sep_cuda_init_mol();
+
 	sep_cuda_read_bonds(aptr, mptr, "start_water.top", 'q');
 	sep_cuda_read_angles(aptr, mptr, "start_water.top", 'q');
 	

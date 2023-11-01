@@ -6,7 +6,7 @@
 #include "sepcudamisc.h"
 #include <stdlib.h>
 
-bool sep_cuda_check_neighblist(sepcupart *ptr, float skin);
+void sep_cuda_check_neighblist(sepcupart *ptr, float skin);
 void sep_cuda_reset_exclusion(sepcupart *pptr);
 void sep_cuda_copy_exclusion(sepcupart *pptr);
 void sep_cuda_set_hexclusion(sepcupart *pptr, int a, int b);

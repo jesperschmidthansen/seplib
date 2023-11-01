@@ -6,7 +6,7 @@
 
 clear
 
-nvt = true;
+nvt = false;
 cutoff = 2.5; epsilon = 1.0; sigma = 1.0; aw = 1.0;
 
 cmolsim('load', 'xyz', 'start_singleAN1000.xyz');

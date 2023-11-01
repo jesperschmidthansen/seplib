@@ -27,7 +27,7 @@ int main(int argc, char **argv){
 	
 	float dump[3];
 	float temp0 = 2.0; 	char filestr[100];
-	int n = 0; int nloops = 100000; bool update = true; int updatecounter = 0; int counter = 0;
+	int n = 0; int nloops = 100000; int updatecounter = 0; int counter = 0;
 	while ( n<nloops ){
 
 		//if ( sep_cuda_logrem(n, 2) ){
@@ -43,7 +43,7 @@ int main(int argc, char **argv){
 		
 		sep_cuda_reset_iteration(ptr);
 
-		if ( update ) { updatecounter++; sep_cuda_update_neighblist(ptr, 2.5); }
+		sep_cuda_update_neighblist(ptr, 2.5); 
 	
 		sep_cuda_force_lj(ptr);
 			
@@ -53,7 +53,7 @@ int main(int argc, char **argv){
 		
 		if ( n%100==0 ) sep_cuda_reset_momentum(ptr);
 			
-		update = sep_cuda_check_neighblist(ptr, sptr->skin);
+		if ( n%2==0 ) sep_cuda_check_neighblist(ptr, sptr->skin);
 		
 		if ( n%10 ==0 ){
 			sep_cuda_sample_gh(ghptr, ptr, sptr);
@@ -63,7 +63,7 @@ int main(int argc, char **argv){
 		if ( n%1000 == 0 ){
 			double normalpress, shearpress[3];
 			sep_cuda_get_pressure(&normalpress, shearpress, ptr);
-			sep_cuda_get_energies(ptr, sptr, ensemble);
+			sep_cuda_get_energies(ptr, ensemble);
 			
 			printf("%f %f %f %f %f %f %f %f %f \n", 
 				   sptr->ekin, sptr->epot, sptr->etot, sptr->temp, normalpress, 
