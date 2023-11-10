@@ -345,7 +345,7 @@ __global__ void sep_cuda_setvalue(int *variable, int value){
 	*variable = value;
 }
 
-__global__ void __Sep_cuda_sumenergies(float3 *totalsum, float4* dx, float4 *dv, float4 *df, 
+__global__ void sep_cuda_sumenergies(float3 *totalsum, float4* dx, float4 *dv, float4 *df, 
 									 float dt, float *epot, unsigned npart){
 
 	int id = blockIdx.x*blockDim.x + threadIdx.x;
@@ -468,13 +468,8 @@ void sep_cuda_get_energies(sepcupart *ptr, const char ensemble[]){
 
 	// This summation has been done for the nh-thermostat
 	if ( strcmp("nve", ensemble)==0 ){
-#ifdef OCTAVE
-		__Sep_cuda_sumenergies<<<ptr->nblocks,ptr->nthreads>>>
-							(ptr->sptr->denergies, ptr->dx, ptr->dv, ptr->df, ptr->sptr->dt, ptr->epot, ptr->sptr->npart);
-#else
 		sep_cuda_sumenergies<<<ptr->nblocks,ptr->nthreads>>>
 							(ptr->sptr->denergies, ptr->dx, ptr->dv, ptr->df, ptr->sptr->dt, ptr->epot, ptr->sptr->npart);
-#endif
 		cudaDeviceSynchronize();
 	}
 	

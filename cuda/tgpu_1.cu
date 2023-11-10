@@ -27,7 +27,7 @@ int main(int argc, char **argv){
 	
 	float dump[3];
 	float temp0 = 2.0; 	char filestr[100];
-	int n = 0; int nloops = 100000; int updatecounter = 0; int counter = 0;
+	int n = 0; int nloops = 1000000; int counter = 0;
 	while ( n<nloops ){
 
 		//if ( sep_cuda_logrem(n, 2) ){
@@ -73,7 +73,6 @@ int main(int argc, char **argv){
 		n++;
 	}
 
-	printf("Update freq. %f steps per update\n", (float)n/updatecounter);
 	sep_cuda_save_xyz(ptr, "test.xyz");
 	
 	sep_cuda_sample_gh_free(ghptr);

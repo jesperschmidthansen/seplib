@@ -59,10 +59,8 @@ int main(void){
 	
 		sep_cuda_reset_iteration(aptr);
 		
-		if ( n%10==0 ){
-			sep_cuda_update_neighblist(aptr, 3.5);
-		}
-		
+		sep_cuda_update_neighblist(aptr, 2.9); 
+
 		sep_cuda_force_lj(aptr, "CC", ljparamCC);
 		sep_cuda_force_lj(aptr, "cc", ljparamcc);
 		sep_cuda_force_lj(aptr, "OO", ljparamOO);
@@ -86,6 +84,7 @@ int main(void){
 		sep_cuda_thermostat_nh(aptr, 3.86, 0.1);
 		sep_cuda_integrate_leapfrog(aptr);
 	
+		if ( n%2==0 ) sep_cuda_check_neighblist(ptr, sptr->skin);
 	
 		if ( n%10 ==0 ){
 			sep_cuda_sample_gh(ghptr, aptr, sptr);

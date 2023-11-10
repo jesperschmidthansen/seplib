@@ -25,9 +25,12 @@ __inline__ __device__ float sep_cuda_periodic(float x, float lbox, int *crossing
 	return x;
 }
 
+// I have no clue why I need to define these kernels in this particular file scope
+// It will not work if I just use the kernels declared and defined in sepcudamisc
+// In sepcudaintgr calling kernles from sepcudamisc works
+// THIS MUST BE SOLVED
 #ifdef OCTAVE
-	
-__global__ void __Sep_cuda_calc_dist(float *dist, float4 *p, float4 *pprev, float3 lbox, unsigned npart){
+__global__ void oct_sep_cuda_calc_dist(float *dist, float4 *p, float4 *pprev, float3 lbox, unsigned npart){
 
 	int pidx = blockDim.x * blockIdx.x + threadIdx.x;
 	
@@ -41,7 +44,7 @@ __global__ void __Sep_cuda_calc_dist(float *dist, float4 *p, float4 *pprev, floa
 
 }
 
-__global__ void __Sep_cuda_sumdistance(float *totalsum, float *dist, unsigned npart){
+__global__ void oct_sep_cuda_sumdistance(float *totalsum, float *dist, unsigned npart){
 	
 	__shared__ float sum;
 	if (threadIdx.x==0) sum=.0f;
@@ -56,7 +59,7 @@ __global__ void __Sep_cuda_sumdistance(float *totalsum, float *dist, unsigned np
 	}
 }
 
-__global__ void __Sep_cuda_set_prevpos(float4 *p, float4 *pprev, unsigned npart){
+__global__ void oct_sep_cuda_set_prevpos(float4 *p, float4 *pprev, unsigned npart){
         int pidx = blockDim.x * blockIdx.x + threadIdx.x;
                 
         if ( pidx < npart ){
@@ -66,7 +69,7 @@ __global__ void __Sep_cuda_set_prevpos(float4 *p, float4 *pprev, unsigned npart)
 }
 
 
-__global__ void __Sep_cuda_setvalue(float *variable, float value){*variable = value;}
+__global__ void oct_sep_cuda_setvalue(float *variable, float value){*variable = value;}
 
 
 #endif
@@ -81,8 +84,8 @@ void sep_cuda_check_neighblist(sepcupart *ptr, float skin){
 	const int nt = ptr->nthreads;
 
 #ifdef OCTAVE
-	__Sep_cuda_calc_dist<<<nb, nt>>>(ptr->ddist, ptr->dx, ptr->dxprev, ptr->lbox, ptr->npart);
-	__Sep_cuda_sumdistance<<<nb, nt>>>(&(ptr->dsumdist), ptr->ddist, ptr->npart);
+	oct_sep_cuda_calc_dist<<<nb, nt>>>(ptr->ddist, ptr->dx, ptr->dxprev, ptr->lbox, ptr->npart);
+	oct_sep_cuda_sumdistance<<<nb, nt>>>(&(ptr->dsumdist), ptr->ddist, ptr->npart);
 #else
 	sep_cuda_calc_dist<<<nb, nt>>>(ptr->ddist, ptr->dx, ptr->dxprev, ptr->lbox, ptr->npart);
 	sep_cuda_sumdistance<<<nb, nt>>>(&(ptr->dsumdist), ptr->ddist, ptr->npart);
@@ -97,8 +100,8 @@ void sep_cuda_check_neighblist(sepcupart *ptr, float skin){
 		
 	if ( avsumdr > skin ){
 #ifdef OCTAVE
-		__Sep_cuda_setvalue<<<1,1>>>(&(ptr->dsumdist), 0);
-		__Sep_cuda_set_prevpos<<<nb, nt>>>(ptr->dx, ptr->dxprev, ptr->npart);
+		oct_sep_cuda_setvalue<<<1,1>>>(&(ptr->dsumdist), 0);
+		oct_sep_cuda_set_prevpos<<<nb, nt>>>(ptr->dx, ptr->dxprev, ptr->npart);
 #else 
 		sep_cuda_setvalue<<<1,1>>>(&(ptr->dsumdist), 0);
 		sep_cuda_set_prevpos<<<nb, nt>>>(ptr->dx, ptr->dxprev, ptr->npart);
@@ -187,29 +190,15 @@ __global__ void sep_cuda_build_neighblist(int *neighlist, float4 *p, float *dist
 		
 		int shift = 0;
 		for ( int tile = 0; tile < gridDim.x; tile++ ) {
-
-			/*
-			__shared__ float4 spos[SEP_CUDA_NTHREADS];
-			spos[threadIdx.x] = p[tile * blockDim.x + threadIdx.x];
-			__syncthreads();
-			*/
-			
+		
 			for ( int j = 0; j < SEP_CUDA_NTHREADS; j++ ) {
 				int idxj = tile*blockDim.x + j;
 				
 				if ( idxj >= npart )  break;
 		
 				float dx = mpx - p[idxj].x;  dx = sep_cuda_wrap(dx, lbox.x);
-				//if ( dx > 0.5*lbox.x ) dx -= lbox.x;
-				//else if  ( dx < -0.5*lbox.x ) dx += lbox.x;
-	
 				float dy = mpy - p[idxj].y;  dy = sep_cuda_wrap(dy, lbox.y);
-				//if ( dy > 0.5*lbox.y ) dy -= lbox.y;
-				//else if  ( dy < -0.5*lbox.y ) dy += lbox.y;
-	
 				float dz = mpz - p[idxj].z;  dz = sep_cuda_wrap(dz, lbox.z);
-				//if ( dz > 0.5*lbox.z ) dz -= lbox.z;
-				//else if  ( dz < -0.5*lbox.z ) dz += lbox.z;
 	
 				float distSqr = dx*dx + dy*dy + dz*dz;
 
@@ -244,7 +233,6 @@ __global__ void sep_cuda_build_neighblist(int *neighlist, float *dist, float4 *p
 		float cfsqr = cf*cf; 
 		int arrayOffset = pidx*nneighmax;
 		int moli = molindex[pidx];
-	//	float mpx = __ldg(&p[pidx].x); float mpy = __ldg(&p[pidx].y); float mpz = __ldg(&p[pidx].z);
 		float mpx =p[pidx].x; float mpy = p[pidx].y; float mpz = p[pidx].z;
 	
 		#pragma unroll	
@@ -264,16 +252,8 @@ __global__ void sep_cuda_build_neighblist(int *neighlist, float *dist, float4 *p
 				if ( moli == molindex[idxj] ) continue;
 	
 				float dx = mpx - p[idxj].x; dx = sep_cuda_wrap(dx, lbox.x);
-//				if ( dx > 0.5*lbox.x ) dx -= lbox.x;
-//				else if  ( dx < -0.5*lbox.x ) dx += lbox.x;
-	
 				float dy = mpy - p[idxj].y;  dy = sep_cuda_wrap(dy, lbox.y);
-//				if ( dy > 0.5*lbox.y ) dy -= lbox.y;
-//				else if  ( dy < -0.5*lbox.y ) dy += lbox.y;
-	
 				float dz = mpz - p[idxj].z;  dz = sep_cuda_wrap(dz, lbox.z);
-//				if ( dz > 0.5*lbox.z ) dz -= lbox.z;
-//				else if  ( dz < -0.5*lbox.z ) dz += lbox.z;
 			
 				float distSqr = dx*dx + dy*dy + dz*dz;
 
@@ -291,7 +271,6 @@ __global__ void sep_cuda_build_neighblist(int *neighlist, float *dist, float4 *p
 					shift++;
 				}
 			}
-			// __syncthreads();
 		}
 	}
 
@@ -336,9 +315,7 @@ __global__ void sep_cuda_lj(const char type1, const char type2, float4 params, i
 			if ( (itype == atype && jtype == btype) || (itype == btype && jtype == atype) ){
 			
 				float dx = mpx - pos[pjdx].x; dx = sep_cuda_wrap(dx, lbox.x);
-		
 				float dy = mpy - pos[pjdx].y; dy = sep_cuda_wrap(dy, lbox.y);
-		
 				float dz = mpz - pos[pjdx].z; dz = sep_cuda_wrap(dz, lbox.z);
 		
 				float distSqr = dx*dx + dy*dy + dz*dz;
@@ -567,8 +544,6 @@ __global__ void sep_cuda_calc_molforce(float3 *mforce,  const char type1, const 
 			
 		float mpx = __ldg(&pos[pidx].x); float mpy = __ldg(&pos[pidx].y); float mpz = __ldg(&pos[pidx].z);
 				
-	//	float Fx=0.0f; float Fy = 0.0f; float Fz = 0.0f; 
-
 		int n = 0;
 		while ( neighblist[n+offset] != -1 ){
 			int pjdx = neighblist[n+offset];
@@ -597,16 +572,11 @@ __global__ void sep_cuda_calc_molforce(float3 *mforce,  const char type1, const 
 					atomicAdd(&mforce[offset].x, Fx);
 					atomicAdd(&mforce[offset].y, Fy);
 					atomicAdd(&mforce[offset].z, Fz);
-
-					//Fx += ft*dx; Fy += ft*dy; Fz += ft*dz;
 				}
 			}
 			
 			n++;
 		}
-//		atomicAdd(&mforce[molidx].x, Fx);
-//		atomicAdd(&mforce[molidx].y, Fy);
-//		atomicAdd(&mforce[molidx].z, Fz);
 	}
 		
 }
@@ -629,9 +599,6 @@ __global__ void sep_cuda_calc_molforce(float3 *mforce, float cf, int *neighblist
 		float mpx = __ldg(&pos[pidx].x); 
 		float mpy = __ldg(&pos[pidx].y); 
 		float mpz = __ldg(&pos[pidx].z);
-		
-		//Force contribution to mol from particule			
-	//		float Fx = 0.0; float Fy = 0.0; float Fz = 0.0; 		
 		
 		int n = 0;
 		while ( neighblist[n+offset] != -1 ){
@@ -661,12 +628,6 @@ __global__ void sep_cuda_calc_molforce(float3 *mforce, float cf, int *neighblist
 
 			n++;
 		}
-
-		/*
-		atomicAdd(&mforce[molidx].x, Fx);
-		atomicAdd(&mforce[molidx].y, Fy);
-		atomicAdd(&mforce[molidx].z, Fz);
-		*/
 	}	
 		
 }

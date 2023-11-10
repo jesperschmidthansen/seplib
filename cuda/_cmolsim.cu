@@ -117,7 +117,7 @@ void integrate_leapfrog(void){
 	sep_cuda_integrate_leapfrog(pptr);
 
 	if ( iterationnumber%neighblistcheckfreq==0 )
-		sep_cuda_check_neighblist(pptr, sptr->skin); //<- crashes here 
+		sep_cuda_check_neighblist(pptr, sptr->skin);  
 
 	if ( resetmomentumfreq >= 0 && iterationnumber%resetmomentumfreq==0 )
 		sep_cuda_reset_momentum(pptr);

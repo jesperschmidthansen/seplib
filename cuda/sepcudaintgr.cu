@@ -2,19 +2,24 @@
 #include "sepcudaintgr.h"
 
 
+// Again, I have no clue why these function must be defined here
+// Octave's file scope versus CUDA...
+
 #ifdef OCTAVE
+
 __inline__ __device__ float sep_cuda_dot(float4 a){
 	
 	return (a.x*a.x + a.y*a.y + a.z*a.z);
 	
 }
 
-__global__ void __SSep_cuda_sumenergies(float3 *totalsum, float4* dx, float4 *dv, float4 *df, 
+
+__global__ void oct_sep_cuda_sumenergies(float3 *totalsum, float4* dx, float4 *dv, float4 *df, 
 									 float dt, float *epot, unsigned npart){
 
 	int id = blockIdx.x*blockDim.x + threadIdx.x;
 	__shared__ float3 sums;
-	
+
 	if ( threadIdx.x==0 ) {
 		sums.x = sums.y = sums.z = 0.0f;
 	}
@@ -44,6 +49,7 @@ __global__ void __SSep_cuda_sumenergies(float3 *totalsum, float4* dx, float4 *dv
 	
 }
 
+
 #endif
 
 __inline__ __device__ float sep_cuda_wrap(float x, float lbox){
@@ -71,13 +77,11 @@ __inline__ __device__ float sep_cuda_periodic(float x, float lbox, int *crossing
 }
 
 
-
 __global__ void sep_cuda_leapfrog(float4 *pos, float4 *vel, 
 		  float4 *force, float *dist, int3 *crossing, float dt, float3 lbox, unsigned npart){
 
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
 	
-	//float4 oldpos = make_float4(pos[i].x, pos[i].y, pos[i].z, 0.0f);
 	float4 mypos = make_float4(pos[i].x, pos[i].y, pos[i].z, pos[i].w);
 
 	if ( i < npart ) {
@@ -95,15 +99,7 @@ __global__ void sep_cuda_leapfrog(float4 *pos, float4 *vel,
 	
 		mypos.z += vel[i].z*dt;
 		mypos.z = sep_cuda_periodic(mypos.z, lbox.z, &(crossing[i].z));
-					
-		/*
-		   float dx = oldpos.x - mypos.x; dx = sep_cuda_wrap(dx, lbox.x);
-			float dy = oldpos.y - mypos.y; dy = sep_cuda_wrap(dy, lbox.y);
-			float dz = oldpos.z - mypos.z; dz = sep_cuda_wrap(dz, lbox.z);
 	
-			dist[i] += sqrtf(dx*dx + dy*dy + dz*dz);
-		*/
-
 		pos[i].x = mypos.x; pos[i].y = mypos.y; pos[i].z = mypos.z;
 	}
 	
@@ -138,9 +134,9 @@ void sep_cuda_thermostat_nh(sepcupart *pptr, float temp0, float tau){
 	
 	// Get current system kinetic energy
 #ifdef OCTAVE
-	__SSep_cuda_sumenergies<<<nb,nt>>>
+	oct_sep_cuda_sumenergies<<<nb,nt>>>
 		(pptr->sptr->denergies, pptr->dx, pptr->dv, pptr->df, pptr->sptr->dt, pptr->epot, pptr->sptr->npart);
-#else
+#else 
 	sep_cuda_sumenergies<<<nb,nt>>>
 		(pptr->sptr->denergies, pptr->dx, pptr->dv, pptr->df, pptr->sptr->dt, pptr->epot, pptr->sptr->npart);
 #endif

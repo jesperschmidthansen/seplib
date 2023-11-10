@@ -26,23 +26,23 @@ int main(void){
 	
 	FILE *fout = fopen("test.dat", "w");
 
-	int nloops = 1000000; int counter = 0; char filestr[100];
+	int nloops = 10000; int counter = 0; char filestr[100];
 	for ( int n=0; n<nloops; n++ ){
 	
 		sep_cuda_reset_iteration(aptr);
 		
-		if ( n%10==0 ){
-			sep_cuda_update_neighblist(aptr, 2.9);
-		}
-		
+		sep_cuda_update_neighblist(aptr, 2.9); 
+	
 		sep_cuda_force_lj(aptr, "OO", ljparam);
 		sep_cuda_force_sf(aptr, 2.9);
 		
 		sep_cuda_force_harmonic(aptr, mptr, 0, 68000, 0.316);
 		sep_cuda_force_angle(aptr, mptr, 0, 490 , 1.97);
 		
-		sep_cuda_thermostat_nh(aptr, 3.86, 0.1);
+		sep_cuda_thermostat_nh(aptr, 3.86, .1);
 		sep_cuda_integrate_leapfrog(aptr);
+
+		if ( n%2==0 ) sep_cuda_check_neighblist(aptr, sptr->skin);
 
 		if ( n%sintdip==0 )
 		 	sep_cuda_sample_dipole(polcorr, aptr, sptr, mptr);
@@ -56,14 +56,19 @@ int main(void){
 		}
 
 		if ( n%sintmisc==0 ){
-			double  P[9];
+			double  P[9]; float dump[3];
 			sep_cuda_mol_calc_cmprop(aptr, mptr);
 			sep_cuda_mol_calc_dipoles(aptr, mptr); 
 			sep_cuda_mol_calc_molpress(P, aptr, mptr);
 			double mu = sep_cuda_mol_calc_avdipole(mptr);
-
-			printf("%d %f ", n, mu);
-			for ( int k=0; k<9; k++ ) printf("%f ", P[k]);
+	
+			sep_cuda_get_energies(aptr, "nvt");
+			
+			printf("%f %f %f %f %f ", 
+				   sptr->ekin, sptr->epot, sptr->etot, sptr->temp, sep_cuda_eval_momentum(dump, aptr));
+		
+			//printf("%d %f ", n, mu);
+			//for ( int k=0; k<9; k++ ) printf("%f ", P[k]);
 			printf("\n");
 			fflush(stdout);
 		}

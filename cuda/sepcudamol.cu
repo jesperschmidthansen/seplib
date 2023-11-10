@@ -87,21 +87,23 @@ void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file, cons
 	unsigned moli, a, b, type;
 
 	mptr->nbonds = 0; 
-
-	// Broken
-	//sep_cuda_reset_exclusion(pptr);
 	
 	FILE *fptr = fopen(file, "r");
 	if ( fptr == NULL ) sep_cuda_file_error();
+	 
+	// Find the 'bonds' section 
+	fptr = sep_cuda_set_file_pointer(fptr, section);
+	if ( fptr == NULL ) {
+		if ( opt=='v' ){
+		   fprintf(stdout, "No bonds found\n");
+	   	}
+ 		return;
+	}		
 	
 	// We *must* init the pointer since it will be free no matter if the read is sucessful or not
 	mptr->hblist = (unsigned *)malloc(0);  // stupid-cast
 	if ( mptr->hblist == NULL ) sep_cuda_mem_error();
- 
-	// Find the 'bonds' section 
-	fptr = sep_cuda_set_file_pointer(fptr, section);
-	if ( fptr == NULL ) sep_cuda_file_error();
-	
+
 	do {
 
 		fgetpos(fptr, &pos_file); 
@@ -179,8 +181,7 @@ void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file, cons
 		 cudaMallocHost((void **)&(mptr->hpel),nbytes) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 
-	if ( cudaMallocHost((void **)&(mptr->masses), mptr->nmols*sizeof(float)) 
-			== cudaErrorMemoryAllocation )
+	if ( cudaMallocHost((void **)&(mptr->masses), mptr->nmols*sizeof(float)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
 	nbytes = mptr->nmols*mptr->nmols*sizeof(float3);
@@ -194,6 +195,8 @@ void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file, cons
 
 
 void sep_cuda_free_bonds(sepcumol *mptr){
+
+	if ( mptr->nbonds == 0 ) return;
 
 	cudaFreeHost(mptr->hblist);	cudaFree(mptr->dblist);
 
@@ -223,20 +226,22 @@ void sep_cuda_read_angles(sepcupart *pptr, sepcumol *mptr, const char *file, con
 	
 	mptr->nangles = 0; 
 
-	// Broke
-	//sep_cuda_reset_exclusion(pptr);
-	
 	FILE *fptr = fopen(file, "r");
 	if ( fptr == NULL ) sep_cuda_file_error();
+	 
+	// Find the 'angles' section 
+	fptr = sep_cuda_set_file_pointer(fptr, section);
+	if ( fptr == NULL ) {
+		if ( opt=='v' ){
+		   fprintf(stdout, "No angles found");
+	   	}
+ 		return;
+	}		
 	
 	// We *must* init the pointer since it will be free no matter if the read is sucessful or not
 	mptr->halist = (unsigned *)malloc(0);
 	if ( mptr->halist == NULL ) sep_cuda_mem_error();
  
-	// Find the 'angles' section 
-	fptr = sep_cuda_set_file_pointer(fptr, section);
-	if ( fptr==NULL ) sep_cuda_file_error();
-	
 	do {
 
 		fgetpos(fptr, &pos_file); 
@@ -304,27 +309,28 @@ void sep_cuda_read_dihedrals(sepcupart *pptr, sepcumol *mptr, const char *file, 
 	fpos_t pos_file;
 	unsigned moli, a, b, c, d, type;
 
+
 	if ( mptr->nmols == 0 ) {
 		fprintf(stderr, "Bond section must be read before dihedral section");
 		exit(EXIT_FAILURE);
 	}
 	
 	mptr->ndihedrals = 0; 
-
-	// Broken
-	//sep_cuda_reset_exclusion(pptr);
-	
 	FILE *fptr = fopen(file, "r");
-	if ( fptr == NULL ) sep_cuda_file_error();
+	if ( fptr == NULL ) {printf("Here\n"); sep_cuda_file_error(); printf("and here\n");}
+
+	fptr = sep_cuda_set_file_pointer(fptr, section);
+	if ( fptr == NULL ) {
+		if ( opt=='v' ){
+		   fprintf(stdout, "No dihedrals found\n");
+	   	}
+ 		return;
+	}		
 	
 	// We *must* init the pointer since it will be free no matter if the read is sucessful or not
 	mptr->hdlist = (unsigned *)malloc(0);
 	if ( mptr->hdlist == NULL ) sep_cuda_mem_error();
  
-	// Find the 'angles' section 
-	fptr = sep_cuda_set_file_pointer(fptr, section);
-	if ( fptr==NULL ) sep_cuda_file_error();
-	
 	do {
 
 		fgetpos(fptr, &pos_file); 
@@ -389,11 +395,15 @@ void sep_cuda_read_dihedrals(sepcupart *pptr, sepcumol *mptr, const char *file, 
 
 void sep_cuda_free_angles(sepcumol *mptr){
 
+	if ( mptr->nangles==0 ) return;
+
 	cudaFreeHost(mptr->halist);
 	cudaFree(mptr->dalist);
 }
 
 void sep_cuda_free_dihedrals(sepcumol *mptr){
+
+	if ( mptr->ndihedrals == 0 ) return; 
 
 	cudaFreeHost(mptr->hdlist);
 	cudaFree(mptr->ddlist);
