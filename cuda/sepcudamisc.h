@@ -8,8 +8,10 @@
 
 void sep_cuda_mem_error(void);
 void sep_cuda_file_error(void);
+
 void sep_cuda_copy(sepcupart *ptr, char opt_quantity, char opt_direction);
 void sep_cuda_copy_energies(sepcusys *sptr);
+
 void sep_cuda_load_lattice_positions(sepcupart *ptr, const char *xyzfile);
 void sep_cuda_save_crossings(sepcupart *ptr, const char *filestr, float time);
 void sep_cuda_save_xyz(sepcupart *ptr, const char *filestr);
@@ -28,6 +30,7 @@ __global__ void sep_cuda_set_prevpos(float4 *p, float4 *pprev, unsigned npart);
 __global__ void sep_cuda_calc_dist(float *dist, float4 *p, float4 *pprev, float3 lbox, unsigned npart);
 __global__ void sep_cuda_sumdistance(float *totalsum, float *dist, unsigned npart);
 __global__ void sep_cuda_setvalue(float *variable, float value);
+__global__ void sep_cuda_reset_variable(float3 *a);
 __global__ void sep_cuda_reset(float4 *force, float *epot, float4 *press, float4 *sumpress, float3 *energies, unsigned npart);
 __global__ void sep_cuda_reset_mol(float3 *force, unsigned nmol);
 __global__ void sep_cuda_reset_mol_fij(float3 *force, unsigned nmol);
@@ -35,10 +38,12 @@ __global__ void sep_cuda_printvalue(float *value);
 __global__ void sep_cuda_setvalue(int *variable, int value);
 __global__ void sep_cuda_sumenergies(float3 *totalsum, float4* dx, float4 *dv, float4 *df, 
 									 float dt, float *epot, unsigned npart);
+__global__ void sep_cuda_sum_ekin(float3 *totalsum, const char type, float4* dx, float4 *dv, float4 *df, 
+									 float dt, float *epot, unsigned npart);
 __global__ void sep_cuda_getpress(float4 *press, float4 *pos, float4 *vel, float4 *ppress, int npart);
 
 /* Wrapper interface */
 void sep_cuda_reset_iteration(sepcupart *pptr);
-void sep_cuda_get_energies(sepcupart *ptr, const char ensemble[]);
+void sep_cuda_get_energies(sepcupart *ptr);
 
 #endif

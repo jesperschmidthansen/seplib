@@ -131,10 +131,9 @@ void save_xyz(const char filename[]){
 	
 }
 
-void thermostat_nh(float temp0, float mass){
+void thermostat_nh(const char *type, float temp0, float mass){
 	
-	ensemble = 1;
-	sep_cuda_thermostat_nh(pptr, temp0, mass);
+	sep_cuda_thermostat_nh(type[0], pptr, temp0, mass);
 
 }
 
@@ -150,10 +149,7 @@ void get_pressure(double *presspointer){
 
 void get_energies(double *energypointer){
 	
-	if ( ensemble==0 )
-		sep_cuda_get_energies(pptr, "nve");
-	else if ( ensemble==1 ) 
-		sep_cuda_get_energies(pptr, "nvt");
+	sep_cuda_get_energies(pptr);
 	
 	energypointer[0] = sptr->ekin;
 	energypointer[1] = sptr->epot;

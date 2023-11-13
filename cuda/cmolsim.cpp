@@ -205,11 +205,11 @@ void action_thermostat(const octave_value_list& args){
 	const std::string specifier = args(1).string_value();
 
 	if ( strcmp(specifier.c_str(), "nosehoover")==0 && args.length()==5 ){
-		const std::string type  =  args(2).string_value(); // Still not supported in sepcuda
+		const std::string type  =  args(2).string_value();
 	  	float temp0 = args(3).scalar_value();
 		float thermostatmass = args(4).scalar_value();
 
-		thermostat_nh(temp0, thermostatmass);
+		thermostat_nh(type.c_str() , temp0, thermostatmass);
 	}
 	else 
 		error("Something went wrong with input for action 'thermostat'");

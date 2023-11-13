@@ -1,12 +1,10 @@
 ##########################################
 ##
 ## Simple benchmark script
-##
+## system('export LD_LIBRARY_PATH=.');
 ##########################################
 
 clear
-
-system('export LD_LIBRARY_PATH=.');
 
 cutoff = 2.5; epsilon = 1.0; sigma = 1.0; aw = 1.0;
 

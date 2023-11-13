@@ -91,7 +91,7 @@ void sep_cuda_check_neighblist(sepcupart *ptr, float skin){
 	sep_cuda_sumdistance<<<nb, nt>>>(&(ptr->dsumdist), ptr->ddist, ptr->npart);
 #endif
 
-	cudaDeviceSynchronize();
+	//cudaDeviceSynchronize();
 	
 	float sumdr=0.0f;
 	cudaMemcpy(&sumdr, &(ptr->dsumdist), sizeof(float), cudaMemcpyDeviceToHost);
@@ -107,7 +107,7 @@ void sep_cuda_check_neighblist(sepcupart *ptr, float skin){
 		sep_cuda_set_prevpos<<<nb, nt>>>(ptr->dx, ptr->dxprev, ptr->npart);
 #endif
 
-		cudaDeviceSynchronize();
+		//cudaDeviceSynchronize();
 		ptr->sptr->neighbupdate = true;
 	}	
 	else 
@@ -673,7 +673,7 @@ void sep_cuda_force_lj(sepcupart *pptr, const char types[], float params[4]){
 					pptr->sptr->lbox, pptr->dmolindex, pptr->sptr->mptr->nmols, pptr->sptr->npart);
 	}
 
-	cudaDeviceSynchronize();
+	//cudaDeviceSynchronize();
 
 }
 
@@ -684,7 +684,7 @@ void sep_cuda_force_lj(sepcupart *pptr){
 	sep_cuda_lj<<<nb, nt>>>
 		(pptr->neighblist, pptr->dx, pptr->df, pptr->epot, pptr->press, pptr->maxneighb, pptr->lbox, pptr->npart);
 		
-	cudaDeviceSynchronize();
+	//cudaDeviceSynchronize();
 
 }
 
@@ -698,7 +698,7 @@ void sep_cuda_force_lj_sf(sepcupart *pptr, const char types[], float params[3]){
 	sep_cuda_lj_sf<<<nb, nt>>>
 		(types[0], types[1], ljparams, pptr->neighblist, pptr->dx, pptr->df, pptr->epot, 
 									pptr->press, pptr->maxneighb, pptr->lbox, pptr->npart);
-	cudaDeviceSynchronize();
+	//cudaDeviceSynchronize();
 
 }
 
@@ -718,7 +718,7 @@ void sep_cuda_force_sf(sepcupart *pptr, const float cf){
 										 pptr->lbox, pptr->npart);
 	}
 
-	cudaDeviceSynchronize();
+	//cudaDeviceSynchronize();
 
 }
 
@@ -743,7 +743,7 @@ void sep_cuda_update_neighblist(sepcupart *pptr, float maxcutoff){
 
 		pptr->sptr->neighbupdate = false;
 
-		cudaDeviceSynchronize();
+		//cudaDeviceSynchronize();
 	}
 }
 
@@ -754,7 +754,7 @@ void sep_cuda_force_lattice(sepcupart *pptr, const char type, float springConsta
 	sep_cuda_lattice_force<<<nb, nt>>>
 		(type, springConstant, pptr->dx, pptr->dx0, pptr->df, pptr->lbox, pptr->npart);
 		
-	cudaDeviceSynchronize();
+	//cudaDeviceSynchronize();
 
 }
 

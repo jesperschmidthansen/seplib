@@ -330,9 +330,15 @@ __global__ void sep_cuda_sumdistance(float *totalsum, float *dist, unsigned npar
 __global__ void sep_cuda_setvalue(float *variable, float value){
 	
 	*variable = value;
-
 	
 }
+
+__global__ void sep_cuda_reset_variable(float3 *a){
+
+	a->x = a->y = a->z = 0.0f;
+
+}
+
 
 __global__ void sep_cuda_printvalue(float *value){
 	
@@ -379,6 +385,43 @@ __global__ void sep_cuda_sumenergies(float3 *totalsum, float4* dx, float4 *dv, f
 	}
 	
 }
+
+// NOTE: We borrow the totalsum.y to store the total number of partiles of this type
+__global__ void sep_cuda_sum_ekin(float3 *totalsum, const char type, float4* dx, float4 *dv, float4 *df, 
+								  float dt, float *epot, unsigned npart){
+
+	int id = blockIdx.x*blockDim.x + threadIdx.x;
+	__shared__ float sumekin;
+	__shared__ int numtype;
+
+	if ( threadIdx.x==0 ){
+	   	sumekin = 0.0f;
+		numtype = 0;
+	}
+	__syncthreads();
+
+	int itype = __float2int_rd(df[id].w);
+
+	if ( id < npart && itype==(int)type ){
+		float4 vel; 
+		vel.x =  dv[id].x - 0.5*dt*df[id].x/dx[id].w;
+		vel.y =  dv[id].y - 0.5*dt*df[id].y/dx[id].w;
+		vel.z =  dv[id].z - 0.5*dt*df[id].z/dx[id].w;
+		
+		float myekin = 0.5*sep_cuda_dot(vel)*dx[id].w;
+		
+		atomicAdd(&sumekin, myekin);
+		atomicAdd(&numtype, 1.0);
+	}
+
+	__syncthreads();
+	
+	if ( id < npart && threadIdx.x == 0 ){ 
+		atomicAdd(&(totalsum->x), sumekin);
+		atomicAdd(&(totalsum->y), numtype);
+	}
+}
+
 
 __global__ void sep_cuda_getpress(float4 *press, float4 *pos, float4 *vel, float4 *ppress, int npart){
 	
@@ -464,15 +507,11 @@ void sep_cuda_reset_iteration(sepcupart *pptr){
 
 
 
-void sep_cuda_get_energies(sepcupart *ptr, const char ensemble[]){
+void sep_cuda_get_energies(sepcupart *ptr){
 
-	// This summation has been done for the nh-thermostat
-	if ( strcmp("nve", ensemble)==0 ){
-		sep_cuda_sumenergies<<<ptr->nblocks,ptr->nthreads>>>
+
+	sep_cuda_sumenergies<<<ptr->nblocks,ptr->nthreads>>>
 							(ptr->sptr->denergies, ptr->dx, ptr->dv, ptr->df, ptr->sptr->dt, ptr->epot, ptr->sptr->npart);
-		cudaDeviceSynchronize();
-	}
-	
 	sep_cuda_copy_energies(ptr->sptr);
 			
 	ptr->sptr->ekin = (ptr->sptr->henergies->x)/ptr->sptr->npart;
@@ -480,6 +519,7 @@ void sep_cuda_get_energies(sepcupart *ptr, const char ensemble[]){
 	
 	ptr->sptr->etot = ptr->sptr->ekin + ptr->sptr->epot;
 	ptr->sptr->temp = 2./3*ptr->sptr->ekin;
+
 }
 
 

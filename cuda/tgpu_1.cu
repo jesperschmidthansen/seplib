@@ -27,7 +27,7 @@ int main(int argc, char **argv){
 	
 	float dump[3];
 	float temp0 = 2.0; 	char filestr[100];
-	int n = 0; int nloops = 1000000; int counter = 0;
+	int n = 0; int nloops = 100000; int counter = 0;
 	while ( n<nloops ){
 
 		//if ( sep_cuda_logrem(n, 2) ){
@@ -47,7 +47,7 @@ int main(int argc, char **argv){
 	
 		sep_cuda_force_lj(ptr);
 			
-		if ( atoi(argv[1])==1 )	sep_cuda_thermostat_nh(ptr, temp0, 0.1);	
+		if ( atoi(argv[1])==1 )	sep_cuda_thermostat_nh('A', ptr, temp0, 0.1);	
 
 		sep_cuda_integrate_leapfrog(ptr);
 		

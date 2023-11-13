@@ -84,7 +84,7 @@ int main(void){
 		sep_cuda_thermostat_nh(aptr, 3.86, 0.1);
 		sep_cuda_integrate_leapfrog(aptr);
 	
-		if ( n%2==0 ) sep_cuda_check_neighblist(ptr, sptr->skin);
+		if ( n%2==0 ) sep_cuda_check_neighblist(aptr, sptr->skin);
 	
 		if ( n%10 ==0 ){
 			sep_cuda_sample_gh(ghptr, aptr, sptr);

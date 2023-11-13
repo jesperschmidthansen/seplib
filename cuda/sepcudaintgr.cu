@@ -15,7 +15,7 @@ __inline__ __device__ float sep_cuda_dot(float4 a){
 
 
 __global__ void oct_sep_cuda_sumenergies(float3 *totalsum, float4* dx, float4 *dv, float4 *df, 
-									 float dt, float *epot, unsigned npart){
+										 float dt, float *epot, unsigned npart){
 
 	int id = blockIdx.x*blockDim.x + threadIdx.x;
 	__shared__ float3 sums;
@@ -48,6 +48,49 @@ __global__ void oct_sep_cuda_sumenergies(float3 *totalsum, float4* dx, float4 *d
 	}
 	
 }
+
+__global__ void oct_sep_cuda_sum_ekin(float3 *totalsum, const char type, float4* dx, float4 *dv, float4 *df, 
+									  float dt, float *epot, unsigned npart){
+
+	int id = blockIdx.x*blockDim.x + threadIdx.x;
+	__shared__ float sumekin;
+	__shared__ int numtype;
+
+	if ( threadIdx.x==0 ){
+	   	sumekin = 0.0f;
+		numtype = 0;
+	}
+	__syncthreads();
+
+	int itype = __float2int_rd(df[id].w);
+
+	if ( id < npart && itype==(int)type ){
+		float4 vel; 
+		vel.x =  dv[id].x - 0.5*dt*df[id].x/dx[id].w;
+		vel.y =  dv[id].y - 0.5*dt*df[id].y/dx[id].w;
+		vel.z =  dv[id].z - 0.5*dt*df[id].z/dx[id].w;
+		
+		float myekin = 0.5*sep_cuda_dot(vel)*dx[id].w;
+		
+		atomicAdd(&sumekin, myekin);
+		atomicAdd(&numtype, 1.0);
+	}
+
+	__syncthreads();
+	
+	if ( id < npart && threadIdx.x == 0 ){ 
+		atomicAdd(&(totalsum->x), sumekin);
+		atomicAdd(&(totalsum->y), numtype);
+	}
+}
+
+
+__global__ void oct_sep_cuda_reset_variable(float3 *a){
+
+	a->x = a->y = a->z = 0.0f;
+
+}
+
 
 
 #endif
@@ -116,6 +159,16 @@ __global__ void sep_cuda_update_nosehoover(float *alpha, float3 *denergies, floa
 }
 
 
+__global__ void sep_cuda_update_nosehoover(float *alpha, float3 *denergies, float temp0, 
+										   float tau, float dt){
+
+	float temp = (2.0/3.0)*denergies->x/denergies->y; 
+
+	*alpha = *alpha + dt/(tau*tau)*(temp/temp0 - 1.0);
+
+}
+
+
 __global__ void sep_cuda_nosehoover(float *alpha, float4 *pos, float4 *vel, float4 *force, unsigned npart){
 	
 	unsigned id = blockIdx.x*blockDim.x + threadIdx.x;
@@ -127,6 +180,20 @@ __global__ void sep_cuda_nosehoover(float *alpha, float4 *pos, float4 *vel, floa
 		force[id].z -= fac*vel[id].z;		
 	}
 }
+
+__global__ void sep_cuda_nosehoover(float *alpha, const char type, float4 *pos, float4 *vel, float4 *force, unsigned npart){
+	
+	unsigned id = blockIdx.x*blockDim.x + threadIdx.x;
+	int itype = __float2int_rd(force[id].w);
+
+	if ( id < npart && itype == (int)type ){	
+		float fac = (*alpha)*pos[id].w;
+		force[id].x -= fac*vel[id].x; 
+		force[id].y -= fac*vel[id].y; 
+		force[id].z -= fac*vel[id].z;		
+	}
+}
+
 
 void sep_cuda_thermostat_nh(sepcupart *pptr, float temp0, float tau){
 	const int nb = pptr->sptr->nblocks; 
@@ -141,28 +208,63 @@ void sep_cuda_thermostat_nh(sepcupart *pptr, float temp0, float tau){
 		(pptr->sptr->denergies, pptr->dx, pptr->dv, pptr->df, pptr->sptr->dt, pptr->epot, pptr->sptr->npart);
 #endif
 
-	cudaDeviceSynchronize();
+	//cudaDeviceSynchronize();
 	
 	// Update nh-alpha dynamics (single thread)
 	sep_cuda_update_nosehoover<<<1,1>>>
 		(pptr->sptr->dalpha, pptr->sptr->denergies, temp0, tau, pptr->sptr->dt, pptr->sptr->npart);
-	cudaDeviceSynchronize();
+	//cudaDeviceSynchronize();
 
 	// Add thermostat force
 	sep_cuda_nosehoover<<<nb, nt>>>
 		(pptr->sptr->dalpha, pptr->dx, pptr->dv, pptr->df, pptr->sptr->npart);
-	cudaDeviceSynchronize();		
-	
+	//cudaDeviceSynchronize();		
+
+	sep_cuda_reset_variable<<<1,1>>>(pptr->sptr->denergies);	
 }
 
-   
+ 
+void sep_cuda_thermostat_nh(const char type, sepcupart *pptr, float temp0, float tau){
+	const int nb = pptr->sptr->nblocks; 
+	const int nt = pptr->sptr->nthreads;
+	
+	// Get current system kinetic energy
+#ifdef OCTAVE
+	oct_sep_cuda_sum_ekin<<<nb,nt>>>
+		(pptr->sptr->denergies, type, pptr->dx, pptr->dv, pptr->df, pptr->sptr->dt, pptr->epot, pptr->sptr->npart);
+#else 
+	sep_cuda_sum_ekin<<<nb,nt>>>
+		(pptr->sptr->denergies, type, pptr->dx, pptr->dv, pptr->df, pptr->sptr->dt, pptr->epot, pptr->sptr->npart);
+#endif
+
+	//cudaDeviceSynchronize();
+	
+	// Update nh-alpha dynamics (single thread)
+	sep_cuda_update_nosehoover<<<1,1>>>
+		(pptr->sptr->dalpha, pptr->sptr->denergies, temp0, tau, pptr->sptr->dt);
+	//cudaDeviceSynchronize();
+
+	// Add thermostat force
+	sep_cuda_nosehoover<<<nb, nt>>>
+		(pptr->sptr->dalpha, type,  pptr->dx, pptr->dv, pptr->df, pptr->sptr->npart);
+	cudaDeviceSynchronize();		
+
+#ifdef OCTAVE
+	oct_sep_cuda_reset_variable<<<1,1>>>(pptr->sptr->denergies);
+#else
+	sep_cuda_reset_variable<<<1,1>>>(pptr->sptr->denergies);	
+#endif
+
+}
+
+  
 void sep_cuda_integrate_leapfrog(sepcupart *pptr){
 	const int nb = pptr->sptr->nblocks; 
 	const int nt = pptr->sptr->nthreads;
 
 	sep_cuda_leapfrog<<<nb, nt>>>
 		(pptr->dx, pptr->dv, pptr->df, pptr->ddist, pptr->dcrossings, pptr->sptr->dt, pptr->lbox, pptr->npart);
-	cudaDeviceSynchronize();
+	//cudaDeviceSynchronize();
 	
 }
 

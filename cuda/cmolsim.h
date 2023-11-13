@@ -18,7 +18,7 @@ void force_torsion(int type, float *params);
 
 void integrate_leapfrog(void);
 
-void thermostat_nh(float temp0, float thermostatmass);
+void thermostat_nh(const char *type, float temp0, float thermostatmass);
 void reset_momentum(int resetfreq);
 
 void get_pressure(double *press);
