@@ -7,15 +7,9 @@
 #include <stdlib.h>
 
 void sep_cuda_check_neighblist(sepcupart *ptr, float skin);
-void sep_cuda_reset_exclusion(sepcupart *pptr);
-void sep_cuda_copy_exclusion(sepcupart *pptr);
-void sep_cuda_set_hexclusion(sepcupart *pptr, int a, int b);
 void sep_cuda_set_exclusion(sepcupart *aptr, const char rule[]);
 
 // Kernels
-__global__ 
-void sep_cuda_reset(float4 *force, float *epot, float4 *press, float4 *sumpress, float3 *energies, unsigned npart);
-
 __global__ 
 void sep_cuda_build_neighblist(int *neighlist, float4 *p, float *dist, float cf, float3 lbox, unsigned nneighmax, unsigned npart);
 
@@ -45,13 +39,6 @@ void sep_cuda_sf(float cf, int *neighblist, float4 *pos, float4 *vel, float4 *fo
 __global__ void sep_cuda_calc_molforce(float3 *mforce,  const char type1, const char type2, float3 params, float4 *pos, 
 										int *neighblist,  unsigned maxneighb, float4 *force, 
 										float3 lbox, int *molindex, unsigned nmol, const unsigned npart);
-
-/*
-__global__ void sep_cuda_calc_molforce(float3 *mforce,  const char type1, const char type2, float3 params, float4 *pos, 
-									int *neighblist,  unsigned maxneighb, float4 *force, 
-									float3 lbox, int *molindex, const unsigned npart); 
-
-*/
 
 /* Calculate molecular force due to sf Coulomb interactions */
 __global__ void sep_cuda_calc_molforce(float3 *mforce, float cf, int *neighblist, float4 *pos, float4 *vel, 

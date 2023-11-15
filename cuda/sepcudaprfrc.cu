@@ -88,7 +88,7 @@ void sep_cuda_check_neighblist(sepcupart *ptr, float skin){
 	oct_sep_cuda_sumdistance<<<nb, nt>>>(&(ptr->dsumdist), ptr->ddist, ptr->npart);
 #else
 	sep_cuda_calc_dist<<<nb, nt>>>(ptr->ddist, ptr->dx, ptr->dxprev, ptr->lbox, ptr->npart);
-	sep_cuda_sumdistance<<<nb, nt>>>(&(ptr->dsumdist), ptr->ddist, ptr->npart);
+	sep_cuda_sum_distance<<<nb, nt>>>(&(ptr->dsumdist), ptr->ddist, ptr->npart);
 #endif
 
 	//cudaDeviceSynchronize();
@@ -103,7 +103,7 @@ void sep_cuda_check_neighblist(sepcupart *ptr, float skin){
 		oct_sep_cuda_setvalue<<<1,1>>>(&(ptr->dsumdist), 0);
 		oct_sep_cuda_set_prevpos<<<nb, nt>>>(ptr->dx, ptr->dxprev, ptr->npart);
 #else 
-		sep_cuda_setvalue<<<1,1>>>(&(ptr->dsumdist), 0);
+		sep_cuda_set_value<<<1,1>>>(&(ptr->dsumdist), 0.0);
 		sep_cuda_set_prevpos<<<nb, nt>>>(ptr->dx, ptr->dxprev, ptr->npart);
 #endif
 
@@ -115,40 +115,6 @@ void sep_cuda_check_neighblist(sepcupart *ptr, float skin){
 
 
 }
-
-void sep_cuda_reset_exclusion(sepcupart *pptr){
-	
-	for ( unsigned n=0; n<pptr->npart_padding; n++ ){
-		int offset = n*(SEP_MAX_NUMB_EXCLUSION+1);
-
-		pptr->hexclusion[offset] = 0;
-		for ( int m=1; m<=SEP_MAX_NUMB_EXCLUSION; m++ )
-			pptr->hexclusion[offset+m] = -1;
-		
-	}
-	
-	sep_cuda_copy_exclusion(pptr);	
-}
-
-void sep_cuda_copy_exclusion(sepcupart *pptr){
-
-	size_t nbytes_excludelist = (SEP_MAX_NUMB_EXCLUSION+1)*pptr->npart_padding*sizeof(int);
-		
-	cudaError_t __err = cudaMemcpy(pptr->dexclusion, pptr->hexclusion, nbytes_excludelist, cudaMemcpyHostToDevice);
-	if ( __err != cudaSuccess ) fprintf(stderr, "Error copying\n");	
-
-}
-
-void sep_cuda_set_hexclusion(sepcupart *pptr, int a, int b){
-	
-	int offset_a = a*(SEP_MAX_NUMB_EXCLUSION+1); 
-	int offset_lst = pptr->hexclusion[offset_a];
-	
-	pptr->hexclusion[offset_a + offset_lst + 1] = b;
-	pptr->hexclusion[offset_a] = pptr->hexclusion[offset_a] + 1;
-	
-}
-
 
 
 void sep_cuda_set_exclusion(sepcupart *aptr, const char rule[]){
@@ -167,7 +133,6 @@ void sep_cuda_set_exclusion(sepcupart *aptr, const char rule[]){
 	cudaMemcpy(&(aptr->dexclusion_rule), &(aptr->hexclusion_rule), nbytes, cudaMemcpyHostToDevice);
 	
 }
-
 
 // Kernel functions
 

@@ -175,7 +175,7 @@ void sep_cuda_save_xyz(sepcupart *ptr, const char *filestr){
 }
 
 
-void sep_cuda_compressbox(sepcupart *aptr, float rho0, float compressfactor[3]){
+void sep_cuda_compress_box(sepcupart *aptr, float rho0, float compressfactor[3]){
 	
 	float volume = (aptr->lbox.x)*(aptr->lbox.y)*(aptr->lbox.z); 
 	float rho = aptr->npart/volume;
@@ -188,26 +188,6 @@ void sep_cuda_compressbox(sepcupart *aptr, float rho0, float compressfactor[3]){
 	}
 	
 }
-
-void sep_cuda_get_pressure(double *npress, double *shearpress, sepcupart *aptr){
-
-
-	float4 press; press.x = press.y = press.z = press.w = 0.0f;
-	cudaMemcpy(aptr->sumpress, &press, sizeof(float4), cudaMemcpyHostToDevice);
-	
-	sep_cuda_getpress<<<aptr->nblocks, aptr->nthreads>>>
-		(aptr->sumpress, aptr->dx, aptr->dv, aptr->press, aptr->npart);
-	cudaDeviceSynchronize();
-	
-	cudaMemcpy(&press, aptr->sumpress, sizeof(float4), cudaMemcpyDeviceToHost);
-
-	double volume = aptr->lbox.x*aptr->lbox.y*aptr->lbox.z;
-	
-	*npress = press.x/volume;
-	shearpress[0] = press.y/volume; shearpress[1] = press.z/volume; shearpress[2] = press.w/volume;
-	
-}
-
 
 float sep_cuda_eval_momentum(float momentum[3], sepcupart *aptr){
 	
@@ -288,6 +268,7 @@ float sep_cuda_dot_host(float3 a){
 
 }
 
+
 // Kernel functions
 __global__ void sep_cuda_set_prevpos(float4 *p, float4 *pprev, unsigned npart){
         int pidx = blockDim.x * blockIdx.x + threadIdx.x;
@@ -312,7 +293,7 @@ __global__ void sep_cuda_calc_dist(float *dist, float4 *p, float4 *pprev, float3
 
 }
 
-__global__ void sep_cuda_sumdistance(float *totalsum, float *dist, unsigned npart){
+__global__ void sep_cuda_sum_distance(float *totalsum, float *dist, unsigned npart){
 	
 	__shared__ float sum;
 	if (threadIdx.x==0) sum=.0f;
@@ -327,7 +308,7 @@ __global__ void sep_cuda_sumdistance(float *totalsum, float *dist, unsigned npar
 	}
 }
 
-__global__ void sep_cuda_setvalue(float *variable, float value){
+__global__ void sep_cuda_set_value(float *variable, float value){
 	
 	*variable = value;
 	
@@ -340,18 +321,18 @@ __global__ void sep_cuda_reset_variable(float3 *a){
 }
 
 
-__global__ void sep_cuda_printvalue(float *value){
+__global__ void sep_cuda_print_value(float *value){
 	
 	printf("Device value %f with address %p\n", *value, value);
 
 }
 
-__global__ void sep_cuda_setvalue(int *variable, int value){
+__global__ void sep_cuda_set_value(int *variable, int value){
 	
 	*variable = value;
 }
 
-__global__ void sep_cuda_sumenergies(float3 *totalsum, float4* dx, float4 *dv, float4 *df, 
+__global__ void sep_cuda_sum_energies(float3 *totalsum, float4* dx, float4 *dv, float4 *df, 
 									 float dt, float *epot, unsigned npart){
 
 	int id = blockIdx.x*blockDim.x + threadIdx.x;
@@ -423,7 +404,7 @@ __global__ void sep_cuda_sum_ekin(float3 *totalsum, const char type, float4* dx,
 }
 
 
-__global__ void sep_cuda_getpress(float4 *press, float4 *pos, float4 *vel, float4 *ppress, int npart){
+__global__ void sep_cuda_get_pressure(float4 *press, float4 *pos, float4 *vel, float4 *ppress, int npart){
 	
 	__shared__ float4 sums;
 	if ( threadIdx.x==0) {
@@ -457,7 +438,7 @@ __global__ void sep_cuda_getpress(float4 *press, float4 *pos, float4 *vel, float
 }
 
 
-__global__ void sep_cuda_reset(float4 *force, float *epot, float4 *press, float4 *sumpress, float3 *energies, unsigned npart){
+__global__ void sep_cuda_reset_iteration(float4 *force, float *epot, float4 *press, float4 *sumpress, float3 *energies, unsigned npart){
 
 	unsigned i = blockDim.x * blockIdx.x + threadIdx.x;
 	
@@ -490,7 +471,7 @@ void sep_cuda_reset_iteration(sepcupart *pptr){
 	const int nb = pptr->sptr->nblocks; 
 	const int nt = pptr->sptr->nthreads;
 
-	sep_cuda_reset<<<nb,nt>>>
+	sep_cuda_reset_iteration<<<nb,nt>>>
 			(pptr->df, pptr->epot, pptr->press, pptr->sumpress, pptr->sptr->denergies, pptr->npart);
 	
 	if ( pptr->sptr->molprop && pptr->sptr->iteration%pptr->sptr->molpropinterval==0 ){	
@@ -510,7 +491,7 @@ void sep_cuda_reset_iteration(sepcupart *pptr){
 void sep_cuda_get_energies(sepcupart *ptr){
 
 
-	sep_cuda_sumenergies<<<ptr->nblocks,ptr->nthreads>>>
+	sep_cuda_sum_energies<<<ptr->nblocks,ptr->nthreads>>>
 							(ptr->sptr->denergies, ptr->dx, ptr->dv, ptr->df, ptr->sptr->dt, ptr->epot, ptr->sptr->npart);
 	sep_cuda_copy_energies(ptr->sptr);
 			
@@ -520,6 +501,26 @@ void sep_cuda_get_energies(sepcupart *ptr){
 	ptr->sptr->etot = ptr->sptr->ekin + ptr->sptr->epot;
 	ptr->sptr->temp = 2./3*ptr->sptr->ekin;
 
+}
+
+
+void sep_cuda_get_pressure(double *npress, double *shearpress, sepcupart *aptr){
+
+
+	float4 press; press.x = press.y = press.z = press.w = 0.0f;
+	cudaMemcpy(aptr->sumpress, &press, sizeof(float4), cudaMemcpyHostToDevice);
+	
+	sep_cuda_get_pressure<<<aptr->nblocks, aptr->nthreads>>>
+		(aptr->sumpress, aptr->dx, aptr->dv, aptr->press, aptr->npart);
+	cudaDeviceSynchronize();
+	
+	cudaMemcpy(&press, aptr->sumpress, sizeof(float4), cudaMemcpyDeviceToHost);
+
+	double volume = aptr->lbox.x*aptr->lbox.y*aptr->lbox.z;
+	
+	*npress = press.x/volume;
+	shearpress[0] = press.y/volume; shearpress[1] = press.z/volume; shearpress[2] = press.w/volume;
+	
 }
 
 

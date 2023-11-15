@@ -62,7 +62,7 @@ int main(void){
 			sep_cuda_mol_calc_molpress(P, aptr, mptr);
 			double mu = sep_cuda_mol_calc_avdipole(mptr);
 	
-			sep_cuda_get_energies(aptr, "nvt");
+			sep_cuda_get_energies(aptr);
 			
 			printf("%f %f %f %f %f ", 
 				   sptr->ekin, sptr->epot, sptr->etot, sptr->temp, sep_cuda_eval_momentum(dump, aptr));

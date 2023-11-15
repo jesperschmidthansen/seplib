@@ -9,7 +9,6 @@ sepcupart* sep_cuda_allocate_memory(unsigned npartPadding){
 		sep_cuda_mem_error();
 	
 	size_t nbytes = npartPadding*sizeof(float4);
-	size_t nbytes_excludelist = (1+SEP_MAX_NUMB_EXCLUSION)*npartPadding*sizeof(int);
 
 	// Host
 	if ( cudaMallocHost((void **)&(ptr->hx), nbytes) == cudaErrorMemoryAllocation )
@@ -25,9 +24,6 @@ sepcupart* sep_cuda_allocate_memory(unsigned npartPadding){
 		sep_cuda_mem_error();
 	
 	if ( cudaMallocHost((void **)&(ptr->ht), npartPadding*sizeof(char)) == cudaErrorMemoryAllocation )
-		sep_cuda_mem_error();
-	
-	if ( cudaMallocHost((void **)&(ptr->hexclusion), nbytes_excludelist) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
 	if ( cudaMallocHost((void **)&(ptr->hcrossings), npartPadding*sizeof(int3)) == cudaErrorMemoryAllocation )
@@ -64,9 +60,6 @@ sepcupart* sep_cuda_allocate_memory(unsigned npartPadding){
 	if ( cudaMalloc((void **)&(ptr->sumpress), sizeof(float4)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
-	if ( cudaMalloc((void **)&(ptr->dexclusion), nbytes_excludelist) == cudaErrorMemoryAllocation )
-		sep_cuda_mem_error();
-
 	ptr->maxneighb = SEP_CUDA_MAXNEIGHBS;
 	if ( cudaMalloc(&(ptr->neighblist), sizeof(int)*npartPadding*(ptr->maxneighb)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
@@ -93,13 +86,13 @@ void sep_cuda_free_memory(sepcupart *ptr){
 	cudaFreeHost(ptr->hf); 	cudaFreeHost(ptr->hx0);
 	cudaFreeHost(ptr->ht);
 	
-	cudaFreeHost(ptr->hexclusion); cudaFreeHost(ptr->hcrossings); cudaFreeHost(ptr->hmolindex); 
+   	cudaFreeHost(ptr->hcrossings); cudaFreeHost(ptr->hmolindex); 
 	
 	cudaFree(ptr->dx); cudaFree(ptr->dv); cudaFree(ptr->df); cudaFree(ptr->dx0);
 	cudaFree(ptr->ddist); cudaFree(ptr->neighblist);
 	cudaFree(ptr->epot); cudaFree(ptr->press); cudaFree(ptr->sumpress); 
 	
-	cudaFree(ptr->dexclusion); cudaFree(ptr->dcrossings); cudaFree(ptr->dmolindex);
+	cudaFree(ptr->dcrossings); cudaFree(ptr->dmolindex);
 	
 	cudaFreeHost(ptr);
 }
@@ -194,7 +187,7 @@ sepcusys *sep_cuda_sys_setup(sepcupart *pptr){
 	if ( cudaMalloc((void **)&(sptr->dalpha), sizeof(float)) == cudaErrorMemoryAllocation )
 		sep_cuda_mem_error();
 	
-	sep_cuda_setvalue<<<1,1>>>(sptr->dalpha, 0.2);
+	sep_cuda_set_value<<<1,1>>>(sptr->dalpha, 0.2);
 	
 	return sptr;
 }

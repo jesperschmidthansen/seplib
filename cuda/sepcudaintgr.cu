@@ -204,7 +204,7 @@ void sep_cuda_thermostat_nh(sepcupart *pptr, float temp0, float tau){
 	oct_sep_cuda_sumenergies<<<nb,nt>>>
 		(pptr->sptr->denergies, pptr->dx, pptr->dv, pptr->df, pptr->sptr->dt, pptr->epot, pptr->sptr->npart);
 #else 
-	sep_cuda_sumenergies<<<nb,nt>>>
+	sep_cuda_sum_energies<<<nb,nt>>>
 		(pptr->sptr->denergies, pptr->dx, pptr->dv, pptr->df, pptr->sptr->dt, pptr->epot, pptr->sptr->npart);
 #endif
 

@@ -32,7 +32,6 @@ typedef struct _sepcupart {
 	unsigned maxneighb; 
 	int *neighblist; // neighb indicies + trailing -1s
 	int3 *hcrossings, *dcrossings; // Simulation box crossing
-	int *hexclusion, *dexclusion; // Exclusions (atom index) 
 
 	float *epot;  // Potential energy on particle - on device
 	float4 *press; // sumdiag,xy,xz,yz contrib pressures per particle - on device 
