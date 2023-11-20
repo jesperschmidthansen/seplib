@@ -1,5 +1,7 @@
 /**************************************
- * 
+ *
+ * Header for the cmolsim
+ *
  **************************************/
 
 void load_xyz(const char xyzfile[]);
@@ -23,6 +25,12 @@ void reset_momentum(int resetfreq);
 
 void get_pressure(double *press);
 void get_energies(double *energies);
+void get_positions(double *positions);
+void get_velocities(double *velocities);
+void get_masses(double *masses);
+void get_charges(double *charges);
+void get_types(char *types);
+unsigned get_npart(void);
 
 void set_exlusion_molecule(const char rule[]);
 void set_timestep(float dt);

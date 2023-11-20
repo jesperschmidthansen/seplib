@@ -20,7 +20,7 @@ int main(int argc, char **argv){
 	
 	printf("Ensemble is %s\n", ensemble);
 			
-	sepcupart *ptr = sep_cuda_load_xyz("start_singleAN1000.xyz");
+	sepcupart *ptr = sep_cuda_load_xyz("test.xyz");
 	sepcusys *sptr = sep_cuda_sys_setup(ptr);
 
 	sepcugh *ghptr = sep_cuda_sample_gh_init(sptr, 100, 5, 10*sptr->dt);

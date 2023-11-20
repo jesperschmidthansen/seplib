@@ -39,6 +39,6 @@ cmolsim.oct: cmolsim.cpp _cmolsim.cu
 	nvcc $(OCTAVE_OPTIONS) sepcudamisc.cu -o libsepcudamisc.so
 	nvcc $(OCTAVE_OPTIONS) sepcudaprfrc.cu -o libsepcudaprfrc.so
 	nvcc $(OCTAVE_OPTIONS) sepcudamol.cu -o libsepcudamol.so
-	nvcc $(OCTAVE_OPTIONS) _cmolsim.cu -o libcmolsim.so
+	nvcc $(OCTAVE_OPTIONS) cmolsim.cu -o libcmolsim.so
 	mkoctfile --verbose cmolsim.cpp -L. -I. -lcmolsim -lcudart -lsepcudamem -lsepcudaintgr -lsepcudamisc -lsepcudaprfrc -lsepcudamol
 

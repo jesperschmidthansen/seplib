@@ -168,6 +168,78 @@ void action_get(octave_value_list& retval, const octave_value_list& args){
 		
 		retval.append(pr);	
 	}
+	else if ( strcmp(specifier.c_str(), "positions")==0 ){
+		unsigned npart = get_npart();
+		Matrix positions(npart, 3);
+		double *tmp = (double*)malloc(3*npart*sizeof(double));	
+		if ( tmp==NULL )
+			error("Memory allocation error for action 'get', specifier 'positions'");
+
+		get_positions(tmp);
+		
+		for ( unsigned n=0; n<npart; n++ )
+			for ( int k=0; k<3; k++ ) positions(n, k) = tmp[n+k]; 
+
+		free(tmp);
+		retval.append(positions);
+	}
+	else if ( strcmp(specifier.c_str(), "velocities")==0 ){
+		unsigned npart = get_npart();
+		Matrix velocities(npart, 3);
+		double *tmp = (double*)malloc(3*npart*sizeof(double));	
+		if ( tmp==NULL )
+			error("Memory allocation error for action 'get', specifier 'velocities'");
+
+		get_velocities(tmp);
+		
+		for ( unsigned n=0; n<npart; n++ )
+			for ( int k=0; k<3; k++ ) velocities(n, k) = tmp[n+k]; 
+
+		free(tmp);
+		retval.append(velocities);
+	}
+	else if ( strcmp(specifier.c_str(), "masses")==0 ){
+		unsigned npart = get_npart();
+		double *tmp = (double *) malloc(npart*sizeof(double));
+		if ( tmp==NULL )
+			error("Memory allocation error for action 'get', specifier 'masses'");
+
+		get_masses(tmp);
+		ColumnVector mass(npart);
+		for ( unsigned n=0; n<npart; n++ ) mass(n) = tmp[n];
+
+		free(tmp);
+		retval.append(mass);
+	}
+	else if ( strcmp(specifier.c_str(), "charges")==0 ){
+		unsigned npart = get_npart();
+		double *tmp = (double *) malloc(npart*sizeof(double));
+		if ( tmp==NULL )
+			error("Memory allocation error for action 'get', specifier 'charges'");
+
+		get_charges(tmp);
+		ColumnVector charges(npart);
+		for ( unsigned n=0; n<npart; n++ ) charges(n) = tmp[n];
+
+		free(tmp);
+		retval.append(charges);
+	}
+	else if ( strcmp(specifier.c_str(), "types")==0 ){
+		unsigned npart = get_npart();
+		char *tmp = (char*) malloc((npart+1)*sizeof(char));
+		if ( tmp==NULL )
+			error("Memory allocation error for action 'get', specifier 'types'");
+
+		get_types(tmp);
+		tmp[npart] = '\n';
+
+		const std::string types(tmp);	
+		free(tmp);
+
+		retval.append(types);
+	}
+	else if ( strcmp(specifier.c_str(), "npart")==0 )
+		retval.append(get_npart());
 	else 
 		error("Something went wrong with input for action 'get'");
 
