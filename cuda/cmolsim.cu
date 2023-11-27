@@ -17,9 +17,9 @@
 #include <string.h>
 #include <stdbool.h>
 
-sepcupart *pptr; 
-sepcusys *sptr;
-sepcumol *mptr;
+// Variables in file scope - not super elegant...
+
+sepcupart *pptr;  sepcusys *sptr; sepcumol *mptr;
 
 float maxcutoff = 2.5;
 
@@ -32,6 +32,9 @@ int ensemble = 0; // 0: nve, 1: nvt
 bool init = false, initmol = false;
 
 
+
+
+// Function definitions - acting on file scope variables
 void load_xyz(const char file[]){
 	
 	pptr = sep_cuda_load_xyz(file);
@@ -45,8 +48,8 @@ void load_top(const char file[]){
 	mptr = sep_cuda_init_mol();
 	
 	sep_cuda_read_bonds(pptr, mptr, file, 'v');
-	sep_cuda_read_angles(pptr, mptr, file, 'v');
-	sep_cuda_read_dihedrals(pptr, mptr, file, 'v');
+	sep_cuda_read_angles(mptr, file, 'v');
+	sep_cuda_read_dihedrals(mptr, file, 'v');
 	
 	initmol = true;
 }

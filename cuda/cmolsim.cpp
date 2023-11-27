@@ -226,20 +226,17 @@ void action_get(octave_value_list& retval, const octave_value_list& args){
 	}
 	else if ( strcmp(specifier.c_str(), "types")==0 ){
 		unsigned npart = get_npart();
-		char *tmp = (char*) malloc((npart+1)*sizeof(char));
+		char *tmp = (char*) malloc(npart*sizeof(char));
 		if ( tmp==NULL )
 			error("Memory allocation error for action 'get', specifier 'types'");
 
 		get_types(tmp);
-		tmp[npart] = '\n';
+		ColumnVector charges(npart);
+		for ( unsigned n=0; n<npart; n++ ) charges(n) = tmp[n];
 
-		const std::string types(tmp);	
 		free(tmp);
-
-		retval.append(types);
+		retval.append(charges);
 	}
-	else if ( strcmp(specifier.c_str(), "npart")==0 )
-		retval.append(get_npart());
 	else 
 		error("Something went wrong with input for action 'get'");
 

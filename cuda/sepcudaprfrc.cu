@@ -326,7 +326,7 @@ __global__ void sep_cuda_lj(int *neighblist, float4 *pos, float4 *force,
 
 		int offset = pidx*maxneighb;
 			
-		float mpx =pos[pidx].x; float mpy = pos[pidx].y; float mpz = pos[pidx].z;
+		float mpx = pos[pidx].x; float mpy = pos[pidx].y; float mpz = pos[pidx].z;
 	
 		float Fx = 0.0f; float Fy = 0.0f; float Fz = 0.0f; 
 		float Epot = 0.0f; 

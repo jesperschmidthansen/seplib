@@ -213,7 +213,7 @@ void sep_cuda_free_bonds(sepcumol *mptr){
 }
 
 
-void sep_cuda_read_angles(sepcupart *pptr, sepcumol *mptr, const char *file, const char opt){
+void sep_cuda_read_angles(sepcumol *mptr, const char *file, const char opt){
 	const char section[] = {'[', ' ', 'a', 'n', 'g', 'l', 'e', 's', ' ', ']','\n', '\0'};
 	char line[256];
 	fpos_t pos_file;
@@ -303,7 +303,7 @@ void sep_cuda_read_angles(sepcupart *pptr, sepcumol *mptr, const char *file, con
 }
 
 
-void sep_cuda_read_dihedrals(sepcupart *pptr, sepcumol *mptr, const char *file, const char opt){
+void sep_cuda_read_dihedrals(sepcumol *mptr, const char *file, const char opt){
 	const char section[] = {'[', ' ', 'd', 'i', 'h', 'e', 'd', 'r', 'a', 'l', 's', ' ', ']','\n', '\0'};
 	char line[256];
 	fpos_t pos_file;

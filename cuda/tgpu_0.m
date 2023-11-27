@@ -2,6 +2,7 @@
 ##
 ## Simple benchmark script
 ## system('export LD_LIBRARY_PATH=.');
+##
 ##########################################
 
 clear

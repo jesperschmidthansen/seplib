@@ -38,8 +38,8 @@ sepcumol * sep_cuda_init_mol(void);
 FILE *sep_cuda_set_file_pointer(FILE *fptr, const char *section);
 
 void sep_cuda_read_bonds(sepcupart *pptr, sepcumol *mptr, const char *file, const char opt);
-void sep_cuda_read_angles(sepcupart *pptr, sepcumol *mptr, const char *file, const char opt);
-void sep_cuda_read_dihedrals(sepcupart *pptr, sepcumol *mptr, const char *file, const char opt);
+void sep_cuda_read_angles(sepcumol *mptr, const char *file, const char opt);
+void sep_cuda_read_dihedrals(sepcumol *mptr, const char *file, const char opt);
 
 void sep_cuda_free_bonds(sepcumol *mptr);
 void sep_cuda_free_angles(sepcumol *mptr);

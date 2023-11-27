@@ -10,7 +10,7 @@ int main(void){
 	sepcumol *mptr = sep_cuda_init_mol();
 
 	sep_cuda_read_bonds(aptr, mptr, "start_water.top", 'q');
-	sep_cuda_read_angles(aptr, mptr, "start_water.top", 'q');
+	sep_cuda_read_angles(mptr, "start_water.top", 'q');
 	
 	sep_cuda_set_exclusion(aptr, "molecule");
 	

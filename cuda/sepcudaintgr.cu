@@ -124,26 +124,29 @@ __global__ void sep_cuda_leapfrog(float4 *pos, float4 *vel,
 		  float4 *force, float *dist, int3 *crossing, float dt, float3 lbox, unsigned npart){
 
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
-	
+
+	// Local variables not even necessary for speed up	
 	float4 mypos = make_float4(pos[i].x, pos[i].y, pos[i].z, pos[i].w);
+	float4 myvel = make_float4(vel[i].x, vel[i].y, vel[i].z, vel[i].w);
 
 	if ( i < npart ) {
 		float imass = 1.0/mypos.w;
 		
-		vel[i].x += force[i].x*imass*dt; 
-		vel[i].y += force[i].y*imass*dt;
-		vel[i].z += force[i].z*imass*dt;
+		myvel.x += force[i].x*imass*dt; 
+		myvel.y += force[i].y*imass*dt;
+		myvel.z += force[i].z*imass*dt;
 		
-		mypos.x += vel[i].x*dt;
+		mypos.x += myvel.x*dt;
 		mypos.x = sep_cuda_periodic(mypos.x, lbox.x, &(crossing[i].x));
 		
-		mypos.y += vel[i].y*dt;
+		mypos.y += myvel.y*dt;
 		mypos.y = sep_cuda_periodic(mypos.y, lbox.y, &(crossing[i].y));
 	
-		mypos.z += vel[i].z*dt;
+		mypos.z += myvel.z*dt;
 		mypos.z = sep_cuda_periodic(mypos.z, lbox.z, &(crossing[i].z));
 	
 		pos[i].x = mypos.x; pos[i].y = mypos.y; pos[i].z = mypos.z;
+		vel[i].x = myvel.x; vel[i].y = myvel.y; vel[i].z = myvel.z; 
 	}
 	
 }

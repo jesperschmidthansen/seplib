@@ -65,4 +65,4 @@ tools/%:tools/%.c
 
 # CUDA support
 cuda:
-	(cd cuda; make)
+	(cd cuda; make test)
