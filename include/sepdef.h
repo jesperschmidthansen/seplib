@@ -19,6 +19,7 @@
 
 #define SEP_BOND 10
 #define SEP_ANGLE 10
+#define SEP_DIHED 20
 
 #define SEP_NEIGHB 3000
 #define SEP_NUM_NEIGHB 3000

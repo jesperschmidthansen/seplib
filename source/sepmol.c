@@ -150,7 +150,6 @@ void sep_read_angles_top(sepatom *aptr, sepmolinfo *ptr, const char *file, int n
 	ptr->num_atypes = 0;
 
 	int *aindex = sep_vector_int(npart);
-//	for ( int n=0; n<npart; n++ ) aindex[n] = -1;
 
 	// We *must* init the pointers since they will be freed
 	// no matter if the read is sucessful or not
@@ -229,6 +228,7 @@ void sep_read_angles_top(sepatom *aptr, sepmolinfo *ptr, const char *file, int n
 	if ( ptr->angles == NULL )
 		sep_error("%s at %s: Memory allocation error");
 
+	free(aindex);
 }
 
 void sep_free_angles(sepmolinfo *ptr){
@@ -240,7 +240,7 @@ void sep_free_angles(sepmolinfo *ptr){
 }
 
 
-void sep_read_dihedrals_top(sepmolinfo *ptr, const char *file, char opt){
+void sep_read_dihedrals_top(sepatom *aptr, sepmolinfo *ptr, const char *file, int npart, char opt){
 	const char section[] = {'[', ' ', 'd', 'i', 'h', 'e', 'd', 'r', 'a', 
 		'l', 's', ' ', ']', '\n', '\0'};
 	char line[256];
@@ -254,6 +254,8 @@ void sep_read_dihedrals_top(sepmolinfo *ptr, const char *file, char opt){
 	ptr->flag_dihedrals = 1;
 	ptr->num_dihedrals = 0;
 	ptr->num_dtypes = 0;
+
+	int *aindex = sep_vector_int(npart);
 
 	// We *must* init the pointers since they will be freed
 	// no matter if the read is sucessful or not
@@ -303,6 +305,26 @@ void sep_read_dihedrals_top(sepmolinfo *ptr, const char *file, char opt){
 			ptr->dlist[index0+3] = d;
 			ptr->dlist[index0+4] = type;
 
+			// Set angle sharing info
+			if ( aindex[a] > SEP_DIHED-1 || aindex[a] > SEP_DIHED-1 || aindex[a] > SEP_DIHED-1 )
+				sep_error("%s at line %d: Index exceeds SEP_DIHED", __func__, __LINE__);
+
+			aptr[a].dihed[aindex[a]] = b; aindex[a]++; 
+			aptr[a].dihed[aindex[a]] = c; aindex[a]++;
+		    aptr[a].dihed[aindex[a]] = d; aindex[a]++;
+
+			aptr[b].dihed[aindex[b]] = a; aindex[b]++; 
+			aptr[b].dihed[aindex[b]] = c; aindex[b]++;
+		    aptr[b].dihed[aindex[b]] = d; aindex[b]++;
+
+			aptr[c].dihed[aindex[c]] = a; aindex[c]++; 
+			aptr[c].dihed[aindex[c]] = b; aindex[c]++;
+		    aptr[c].dihed[aindex[c]] = d; aindex[c]++;
+
+			aptr[d].dihed[aindex[d]] = a; aindex[d]++; 
+			aptr[d].dihed[aindex[d]] = b; aindex[d]++;
+		    aptr[d].dihed[aindex[d]] = c; aindex[d]++;
+
 			if ( type > ptr->num_dtypes ) ptr->num_dtypes = type; 
 
 		}
@@ -323,6 +345,7 @@ void sep_read_dihedrals_top(sepmolinfo *ptr, const char *file, char opt){
 	if ( ptr->dihedrals == NULL )
 		sep_error("%s at %s: Memory allocation error");
 
+	free(aindex);
 }
 
 void sep_free_dihedrals(sepmolinfo *ptr){
@@ -341,7 +364,7 @@ void sep_read_topology_file(sepatom *aptr, const char *file, sepsys *sysptr, cha
 
 	sep_read_bonds_top(aptr, sysptr->molptr, file, sysptr->npart, opt);
 	sep_read_angles_top(aptr, sysptr->molptr, file, sysptr->npart, opt);
-	sep_read_dihedrals_top(sysptr->molptr, file, opt);
+	sep_read_dihedrals_top(aptr, sysptr->molptr, file, sysptr->npart, opt);
 
 }
 

@@ -36,7 +36,8 @@ typedef struct {
 
 	int molindex;         /**< Molecule index (what molecule does this atom belong to) */  
 	int bond[SEP_BOND];   /**< Index of particle sharing bond */
-	int angle[SEP_ANGLE]; /**< index of particle sharing angle */
+	int angle[SEP_ANGLE]; /**< Index of particle sharing angle */
+	int dihed[SEP_DIHED]; /**< Index of particle sharing dihed angle */
 
 	double sigma;         /**< Hardsphere diameter */
 	int *collid;          /**< List of collision partners */ 

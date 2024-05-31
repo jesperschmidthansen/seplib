@@ -515,8 +515,7 @@ void sep_make_neighblist_from_llist(seppart *ptr,  int nneighb,
 
 
 
-void sep_make_neighblist_from_llist_nonbonded(seppart *ptr, int nneighb, 
-		int *list, sepsys *sys){
+void sep_make_neighblist_from_llist_nonbonded(seppart *ptr, int nneighb, int *list, sepsys *sys){
 	double dr, r2, cf2;
 	int j1, j2, m1, m1X, m1Y, m1Z, m2, m2X, m2Y, m2Z,
 		i, n, k, offset, nsubbox3, nsubbox2, nccell;
@@ -581,7 +580,9 @@ void sep_make_neighblist_from_llist_nonbonded(seppart *ptr, int nneighb,
 									sep_Wrap( dr, sys->length[k] );
 									r2 += dr*dr;
 								}
-								if ( r2 < cf2 && sep_bonded_direct(ptr, j1, j2) == 0 ) {
+								int includePair = sep_bonded_direct(ptr, j1, j2) + 
+									sep_angle_share(ptr, j1, j2) + sep_dihed_share(ptr, j1, j2);	
+								if ( r2 < cf2 && includePair == 0 ) {
 									ptr[j1].neighb[index[j1]] = j2;
 									index[j1]++;
 									if ( index[j1] == nneighb ){
@@ -713,13 +714,33 @@ unsigned int sep_bonded_direct(seppart *ptr, int j1, int j2) {
 }
 
 
+unsigned int sep_angle_share(seppart *ptr, int j1, int j2) {
+
+	for ( int k=0; k<SEP_ANGLE; k++ ) {   
+		if ( ptr[j1].angle[k] == j2 || ptr[j2].angle[k] == j1 ) 
+			return 1;
+	}
+
+	return 0;
+}
+
+
+unsigned int sep_dihed_share(seppart *ptr, int j1, int j2) {
+
+	for ( int k=0; k<SEP_DIHED; k++ ) {   
+		if ( ptr[j1].dihed[k] == j2 || ptr[j2].dihed[k] == j1 ) 
+			return 1;
+	}
+
+	return 0;
+}
+
+
 
 
 ////// LJ specific pair calculations
 
-void sep_force_lj(seppart *ptr, const char *types, 
-		const double *p, sepsys *sys, 
-		sepret *retval, const unsigned opt){
+void sep_force_lj(seppart *ptr, const char *types, const double *p, sepsys *sys, sepret *retval, const unsigned opt){
 
 	const double cf = p[0];
 	if ( cf > sys->cf )
@@ -758,9 +779,7 @@ void sep_force_lj(seppart *ptr, const char *types,
 
 }
 
-void sep_lj_pair_neighb(seppart *ptr, const char *types,
-		const double *param, sepsys *sys, 
-		sepret *retval, bool parallel) {
+void sep_lj_pair_neighb(seppart *ptr, const char *types,const double *param, sepsys *sys, sepret *retval, bool parallel) {
 	int i1, i2, n, k, kk;
 	double r2, ft, f[3], r[3];
 	const double cf = param[0], eps=param[1], sigma=param[2], aw=param[3];
