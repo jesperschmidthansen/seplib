@@ -46,8 +46,9 @@ seppart *sep_init(size_t npart, size_t nneighb){
       ptr[n].prevf[k] = 0.0;
     }
 	
-    for ( k=0; k<4; k++ ) ptr[n].bond[k] = -1;
-         
+    for ( k=0; k<SEP_BOND; k++ ) ptr[n].bond[k] = -1;
+    for ( k=0; k<SEP_ANGLE; k++ ) ptr[n].angle[k] = -1;
+        
   }
   
   return ptr;

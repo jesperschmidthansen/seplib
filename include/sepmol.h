@@ -211,7 +211,7 @@ FILE *sep_set_file_pointer(FILE *fptr, const char *section);
 
 void sep_read_bonds_top(sepatom *aptr, sepmolinfo *ptr, const char *file,
 			int npart, char opt);
-void sep_read_angles_top(sepmolinfo *ptr, const char *file, char opt);
+void sep_read_angles_top(sepatom *aptr, sepmolinfo *ptr, const char *file, int npart, char opt);
 void sep_read_dihedrals_top(sepmolinfo *ptr, const char *file, char opt);
 
 void sep_free_bonds(sepmolinfo *ptr);
