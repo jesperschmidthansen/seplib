@@ -30,7 +30,7 @@ void sep_force_pair_brute(seppart *ptr, const char *types, double cf,
 
 		for ( m=n+1; m<sys->npart; m++ ){
 
-			if ( opt == SEP_NEIGHB_EXCL_BONDED && sep_bonded_direct(ptr, n, m) == 1 ){
+			if ( opt == SEP_NEIGHB_EXCL_BONDED && sep_bond_share(ptr, n, m) == 1 ){
 				continue;
 			}
 			else if ( opt == SEP_NEIGHB_EXCL_SAME_MOL && 
@@ -316,8 +316,7 @@ void sep_make_neighblist(seppart *ptr, sepsys *sys, const unsigned opt){
 		index = 0;
 		for ( m=n+1; m<sys->npart; m++ ){
 
-			if ( opt == SEP_NEIGHB_EXCL_BONDED && 
-					sep_bonded_direct(ptr, n, m) == 1 ){
+			if ( opt == SEP_NEIGHB_EXCL_BONDED && sep_bond_share(ptr, n, m) == 1 ){
 				continue;
 			}
 			else if ( opt == SEP_NEIGHB_EXCL_SAME_MOL && 
@@ -580,14 +579,12 @@ void sep_make_neighblist_from_llist_nonbonded(seppart *ptr, int nneighb, int *li
 									sep_Wrap( dr, sys->length[k] );
 									r2 += dr*dr;
 								}
-								int includePair = sep_bonded_direct(ptr, j1, j2) + 
-									sep_angle_share(ptr, j1, j2) + sep_dihed_share(ptr, j1, j2);	
-								if ( r2 < cf2 && includePair == 0 ) {
+								
+								if ( r2 < cf2 && sep_bonded(ptr, j1, j2) == 0 ) {
 									ptr[j1].neighb[index[j1]] = j2;
 									index[j1]++;
 									if ( index[j1] == nneighb ){
-										sep_error("%s at %d: Too many neighbours\n",
-												__func__, __LINE__);
+										sep_error("%s at %d: Too many neighbours\n", __func__, __LINE__);
 									}
 
 								}	
@@ -703,11 +700,11 @@ void sep_make_neighblist_from_llist_excl_same_mol(seppart *ptr,  int nneighb,
 }
 
 
-unsigned int sep_bonded_direct(seppart *ptr, int j1, int j2) {
+unsigned int sep_bond_share(seppart *ptr, int j1, int j2) {
 
 	for ( int k=0; k<SEP_BOND; k++ ) {   
-		if ( ptr[j1].bond[k] == j2 || ptr[j2].bond[k] == j1 ) 
-			return 1;
+		if ( ptr[j1].bond[k] == -1 || ptr[j2].bond[k] == -1 ) break;
+		if ( ptr[j1].bond[k] == j2 || ptr[j2].bond[k] == j1 ) return 1;
 	}
 
 	return 0;
@@ -717,8 +714,8 @@ unsigned int sep_bonded_direct(seppart *ptr, int j1, int j2) {
 unsigned int sep_angle_share(seppart *ptr, int j1, int j2) {
 
 	for ( int k=0; k<SEP_ANGLE; k++ ) {   
-		if ( ptr[j1].angle[k] == j2 || ptr[j2].angle[k] == j1 ) 
-			return 1;
+		if ( ptr[j1].angle[k] == -1 || ptr[j2].angle[k] == -1 ) break;
+		if ( ptr[j1].angle[k] == j2 || ptr[j2].angle[k] == j1 ) return 1;
 	}
 
 	return 0;
@@ -728,16 +725,19 @@ unsigned int sep_angle_share(seppart *ptr, int j1, int j2) {
 unsigned int sep_dihed_share(seppart *ptr, int j1, int j2) {
 
 	for ( int k=0; k<SEP_DIHED; k++ ) {   
-		if ( ptr[j1].dihed[k] == j2 || ptr[j2].dihed[k] == j1 ) 
-			return 1;
+		if ( ptr[j1].dihed[k] == -1 || ptr[j2].dihed[k] == -1 ) break;
+		if ( ptr[j1].dihed[k] == j2 || ptr[j2].dihed[k] == j1 ) return 1;
 	}
 
 	return 0;
 }
 
 
+unsigned int sep_bonded(seppart *ptr, int i, int j){
 
+	return sep_bond_share(ptr, i, j) + sep_angle_share(ptr, i, j) + sep_dihed_share(ptr,i,j); 
 
+}	
 ////// LJ specific pair calculations
 
 void sep_force_lj(seppart *ptr, const char *types, const double *p, sepsys *sys, sepret *retval, const unsigned opt){
@@ -937,7 +937,7 @@ void sep_lj_pair_brute(seppart *ptr, const char *types, const double *p,
 
 		for (m=n+1; m<sys->npart; m++){
 
-			if ( opt == SEP_NEIGHB_EXCL_BONDED && sep_bonded_direct(ptr, n, m) == 1 ){
+			if ( opt == SEP_NEIGHB_EXCL_BONDED && sep_bond_share(ptr, n, m) == 1 ){
 				continue;
 			}
 			else if ( opt == SEP_NEIGHB_EXCL_SAME_MOL && 
